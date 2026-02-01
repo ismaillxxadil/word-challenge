@@ -7,14 +7,25 @@ export function createEmptyRoom(hostPlayer) {
   do code = makeRoomCode();
   while (rooms.has(code));
 
+  // Initialize host player with empty cards
+  hostPlayer.cards = [];
+
   const room = {
     code,
     createdAt: Date.now(),
     players: [hostPlayer], // max 4
     state: {
-      phase: "lobby", // later: "playing", "voting", "ended"
+      phase: "lobby", // "in-game", "voting", "ended"
       turnIndex: 0,
       startedAt: null,
+      currentPlayerIndex: null,
+      centerWord: null,
+      playedWords: [],
+      scores: {}, // { playerId: score }
+      settings: {
+        cardCount: 7,
+        allowVar: false,
+      },
     },
   };
 

@@ -1,5 +1,62 @@
 import { Server } from "socket.io";
 import { getRoom, rooms } from "./store/room.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Load word list for game
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const centerWordsPath = path.join(__dirname, "data", "center_top.txt");
+const centerWords = fs
+  .readFileSync(centerWordsPath, "utf-8")
+  .split("\n")
+  .map((w) => w.trim())
+  .filter((w) => w.length > 0);
+
+// Arabic letters for card generation
+const AR_LETTERS = [
+  "ا",
+  "ب",
+  "ت",
+  "ث",
+  "ج",
+  "ح",
+  "خ",
+  "د",
+  "ذ",
+  "ر",
+  "ز",
+  "س",
+  "ش",
+  "ص",
+  "ض",
+  "ط",
+  "ظ",
+  "ع",
+  "غ",
+  "ف",
+  "ق",
+  "ك",
+  "ل",
+  "م",
+  "ن",
+  "ه",
+  "و",
+  "ي",
+  "ى",
+];
+
+function getRandomElement(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+function generatePlayerCards(count) {
+  const cards = [];
+  for (let i = 0; i < count; i++) {
+    cards.push(getRandomElement(AR_LETTERS));
+  }
+  return cards;
+}
 
 export function setupSocket(httpServer) {
   const io = new Server(httpServer, {
@@ -108,6 +165,47 @@ export function setupSocket(httpServer) {
 
       // Broadcast room update to remaining players
       io.to(roomCode).emit("room:update", { room });
+    });
+
+    socket.on("room:start-game", ({ roomCode }) => {
+      const room = getRoom(roomCode);
+      if (!room) return;
+
+      // Get card count from settings (default: 7)
+      const cardCount = room.state.settings?.cardCount || 7;
+
+      // Generate cards for each player
+      room.players.forEach((player) => {
+        player.cards = generatePlayerCards(cardCount);
+      });
+
+      // Pick random center word
+      const centerWord = getRandomElement(centerWords);
+
+      // Pick random starting player
+      const startingPlayerIndex = Math.floor(
+        Math.random() * room.players.length,
+      );
+
+      // Update room state
+      room.state.phase = "in-game";
+      room.state.startedAt = Date.now();
+      room.state.currentPlayerIndex = startingPlayerIndex;
+      room.state.centerWord = centerWord;
+      room.state.playedWords = [];
+      room.state.scores = {};
+
+      // Initialize scores for each player
+      room.players.forEach((player) => {
+        room.state.scores[player.id] = 0;
+      });
+
+      // Broadcast game start to all players
+      io.to(roomCode).emit("room:update", { room });
+      io.to(roomCode).emit("game:started", {
+        centerWord,
+        currentPlayerIndex: startingPlayerIndex,
+      });
     });
 
     socket.on("disconnect", () => {

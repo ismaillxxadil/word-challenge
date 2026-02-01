@@ -59,7 +59,7 @@ export default function VocabularyChallengeHome() {
       localStorage.setItem("vc:roomCode", roomCode);
 
       // روح لصفحة اللوبي
-      router.push(`/lobby/${roomCode}`);
+      router.push(`/${roomCode}`);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error
