@@ -30,8 +30,7 @@ interface LobbyPageProps {
 }
 
 export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
-  const { settings, setSettings, socket } =
-    useRoomStore();
+  const { settings, setSettings, socket } = useRoomStore();
   const [roomLinkCopiedLocal, setRoomLinkCopiedLocal] = useState(false);
 
   const currentPlayerId = localStorage.getItem("vc:playerId");
@@ -250,9 +249,7 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-100">
-                      {player.name}
-                    </h3>
+                    <h3 className="font-bold text-slate-100">{player.name}</h3>
                     {player.isHost && (
                       <Crown
                         size={14}
@@ -295,9 +292,7 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
                 key={`empty-${i}`}
                 className="border-2 border-dashed border-slate-800 rounded-2xl p-4 flex items-center justify-center gap-4 text-slate-600 min-h-[88px]"
               >
-                <span className="text-sm font-medium">
-                  في انتظار لاعب...
-                </span>
+                <span className="text-sm font-medium">في انتظار لاعب...</span>
               </div>
             ))}
           </div>
@@ -311,6 +306,11 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
                   ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 hover:shadow-2xl hover:shadow-purple-500/40 cursor-pointer"
                   : "bg-slate-700 cursor-not-allowed opacity-50"
               }`}
+              onClick={() => {
+                if (isHost && socket) {
+                  socket.emit("room:start-game", { roomCode: room.code });
+                }
+              }}
             >
               <span className="flex items-center justify-center gap-3 relative z-10 text-lg">
                 بدء المعركة الآن

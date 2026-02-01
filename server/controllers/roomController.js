@@ -56,6 +56,7 @@ export function joinRoom(req, res) {
       isHost: false,
       joinedAt: Date.now(),
       socketId: null,
+      cards: [],
     };
 
     room.players.push(player);

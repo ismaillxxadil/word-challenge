@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useRoomStore } from "@/store/useRoomStore";
 import Model from "@/components/Model";
 import LobbyPage from "./LobbyPage";
+import GamePage from "./gamePage";
 
 export default function RoomPage() {
   const params = useParams<{ room_id: string }>();
@@ -144,8 +145,14 @@ export default function RoomPage() {
           handleLeave={handleLeave}
           isConnectingToRoom={isConnectingToRoom}
         />
+      ) : room.state.phase === "lobby" ? (
+        <div className="animate-fadeIn">
+          <LobbyPage room={room} handleLeave={handleLeave} />
+        </div>
       ) : (
-        <LobbyPage room={room} handleLeave={handleLeave} />
+        <div className="animate-fadeIn">
+          <GamePage room={room} handleLeave={handleLeave} />
+        </div>
       )}
     </main>
   );
