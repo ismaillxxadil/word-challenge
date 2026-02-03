@@ -128,7 +128,7 @@ export default function RoomPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#0f172a] relative overflow-hidden flex items-center justify-center p-4 font-sans text-slate-100 selection:bg-purple-500 selection:text-white"
+      className="min-h-screen bg-[#0f172a] relative overflow-hidden flex items-center justify-center  font-sans text-slate-100 selection:bg-purple-500 selection:text-white"
     >
       {/* خلفية زخرفية */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] translate-x-1/2 -translate-y-1/2"></div>
