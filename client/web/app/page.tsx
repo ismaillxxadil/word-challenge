@@ -24,6 +24,18 @@ export default function VocabularyChallengeHome() {
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [avatar, setAvatar] = useState(
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+  );
+
+  const AVATAR_OPTIONS = [
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Layla",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Omar",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Sara",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Noor",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Zayd",
+  ] as const;
 
   const handleEnterLobby = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +54,7 @@ export default function VocabularyChallengeHome() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, avatar }),
       });
 
       const data = await res.json();
@@ -57,6 +69,7 @@ export default function VocabularyChallengeHome() {
       localStorage.setItem("vc:name", name);
       localStorage.setItem("vc:playerId", playerId);
       localStorage.setItem("vc:roomCode", roomCode);
+      localStorage.setItem("vc:avatar", avatar);
 
       // روح لصفحة اللوبي
       router.push(`/${roomCode}`);
@@ -224,8 +237,8 @@ export default function VocabularyChallengeHome() {
             )}
           </div>
 
-          {/* 3. نموذج الدخول */}
-          <form onSubmit={handleEnterLobby} className="space-y-4">
+          {/* 3. نموذج الدخول + اختيار الصورة */}
+          <form onSubmit={handleEnterLobby} className="space-y-5">
             <div className="space-y-2">
               <label
                 htmlFor="username"
@@ -252,6 +265,41 @@ export default function VocabularyChallengeHome() {
                   {error}
                 </p>
               )}
+            </div>
+
+            {/* اختيار الصورة */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-slate-300 mr-1 block">
+                اختر صورتك
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {AVATAR_OPTIONS.map((url) => {
+                  const isActive = avatar === url;
+                  return (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => setAvatar(url)}
+                      className={[
+                        "relative rounded-2xl p-1 border transition-all",
+                        "bg-slate-900/50 hover:bg-slate-800",
+                        isActive
+                          ? "border-purple-400 ring-2 ring-purple-500/40"
+                          : "border-slate-700",
+                      ].join(" ")}
+                    >
+                      <img
+                        src={url}
+                        alt="اختيار صورة"
+                        className="w-full aspect-square rounded-xl object-cover bg-slate-800"
+                      />
+                      {isActive && (
+                        <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-purple-500 border-2 border-slate-900" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <button

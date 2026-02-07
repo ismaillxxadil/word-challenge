@@ -1,10 +1,21 @@
 import { LogIn, User, Loader } from "lucide-react";
 
+const AVATAR_OPTIONS = [
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Layla",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Omar",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Sara",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Noor",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Zayd",
+] as const;
+
 export default function Model({
   roomCode,
   handleJoinRoom,
   joinName,
   setJoinName,
+  avatar,
+  setAvatar,
   isJoining,
   joinError,
   handleLeave,
@@ -14,6 +25,8 @@ export default function Model({
   handleJoinRoom: (e: React.FormEvent<HTMLFormElement>) => void;
   joinName: string;
   setJoinName: (name: string) => void;
+  avatar: string;
+  setAvatar: (avatar: string) => void;
   isJoining: boolean;
   joinError: string;
   handleLeave: () => void;
@@ -49,6 +62,41 @@ export default function Model({
         </div>
       ) : (
         <form onSubmit={handleJoinRoom} className="space-y-4">
+          {/* Avatar selection */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-slate-300 block">
+              اختر صورتك
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {AVATAR_OPTIONS.map((url) => {
+                const isActive = avatar === url;
+                return (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setAvatar(url)}
+                    className={[
+                      "relative rounded-2xl p-1 border transition-all",
+                      "bg-slate-900/50 hover:bg-slate-800",
+                      isActive
+                        ? "border-purple-400 ring-2 ring-purple-500/40"
+                        : "border-slate-700",
+                    ].join(" ")}
+                  >
+                    <img
+                      src={url}
+                      alt="اختيار صورة"
+                      className="w-full aspect-square rounded-xl object-cover bg-slate-800"
+                    />
+                    {isActive && (
+                      <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-purple-500 border-2 border-slate-900" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label
               htmlFor="joinName"

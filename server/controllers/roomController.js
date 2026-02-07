@@ -4,11 +4,20 @@ import { createEmptyRoom, getRoom } from "../store/room.js";
 
 const createRoomSchema = z.object({
   name: z.string().trim().min(1).max(20).optional(),
+  avatar: z.string().url().optional(),
 });
 
 const joinSchema = z.object({
   name: z.string().trim().min(1).max(20),
+  avatar: z.string().url().optional(),
 });
+
+function makeDefaultAvatar(name) {
+  const seed = (name || "Player").trim() || "Player";
+  const encoded = encodeURIComponent(seed);
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encoded}`;
+}
+
 export async function createRoom(req, res) {
   try {
     const body = createRoomSchema.parse(req.body);
@@ -19,6 +28,7 @@ export async function createRoom(req, res) {
       isHost: true,
       joinedAt: Date.now(),
       socketId: null, // we’ll fill it when socket joins
+      avatar: body.avatar || makeDefaultAvatar(body.name ?? "Host"),
     };
 
     const room = createEmptyRoom(hostPlayer);
@@ -57,6 +67,7 @@ export function joinRoom(req, res) {
       joinedAt: Date.now(),
       socketId: null,
       cards: [],
+      avatar: body.avatar || makeDefaultAvatar(body.name),
     };
 
     room.players.push(player);

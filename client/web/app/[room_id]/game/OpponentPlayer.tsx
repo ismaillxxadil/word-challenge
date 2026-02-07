@@ -12,7 +12,7 @@ interface OpponentPlayerProps {
 }
 
 export const OpponentPlayer = ({
-  name = "?????",
+  name = "",
   avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=Opponent",
   cards = [],
   onVarClick,
@@ -21,7 +21,9 @@ export const OpponentPlayer = ({
 }: OpponentPlayerProps) => {
   const isSide = variant === "side";
   return (
-    <div className={`flex flex-col items-center gap-[clamp(4px,1vw,8px)] ${className}`}>
+    <div
+      className={`flex flex-col items-center gap-[clamp(4px,1vw,8px)] ${className}`}
+    >
       <div
         className={`flex items-start justify-center overflow-visible perspective-[500px] ${
           isSide
@@ -34,12 +36,16 @@ export const OpponentPlayer = ({
             key={index}
             className={`relative transform origin-top transition-transform duration-300 hover:-translate-y-1 ${
               isSide
-                ? "scale-[0.6] sm:scale-[0.7]"
+                ? "scale-[0.72] sm:scale-[0.8]"
                 : "scale-[0.62] sm:scale-[0.75]"
             }`}
             style={{ zIndex: cards.length - index }}
           >
-            <PlayCard isFlipped={true} isHidden={true} className="shadow-sm cursor-default" />
+            <PlayCard
+              isFlipped={true}
+              isHidden={true}
+              className="shadow-sm cursor-default"
+            />
           </div>
         ))}
       </div>
@@ -51,7 +57,9 @@ export const OpponentPlayer = ({
         onVarClick={onVarClick}
         className={`origin-bottom transition-all ${
           isSide
-            ? "scale-[0.95] w-[clamp(160px,52vw,240px)]"
+            ? // Changed minimum from 160px to 250px
+              // Changed max form 240px to 320px
+              "scale-100 w-[clamp(250px,60vh,320px)]"
             : "scale-100 w-[clamp(200px,70vw,280px)]"
         }`}
       />

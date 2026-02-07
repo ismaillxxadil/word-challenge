@@ -38,6 +38,12 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
   const isHost = currentPlayer?.isHost ?? false;
   const players = room.players;
 
+  const getAvatarUrl = (name: string, avatar?: string | null) => {
+    if (avatar) return avatar;
+    const seed = encodeURIComponent(name || "Player");
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
+  };
+
   const handleCopyLink = () => {
     const url = `${window.location.origin}/${room.code}`;
     navigator.clipboard.writeText(url);
@@ -75,7 +81,7 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
         مغادرة
       </button>
 
-      <div className="relative w-full max-w-4xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+      <div className="relative w-full max-w-6xl xl:max-w-7xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
         {/* === القسم الأيمن: إعدادات الغرفة ومعلومات الرابط === */}
         <aside className="w-full md:w-1/3 bg-slate-950/50 border-l border-slate-800/50 p-6 flex flex-col gap-6">
           {/* عنوان الغرفة */}
@@ -242,10 +248,13 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
                     : "border-slate-700/20 opacity-60"
                 }`}
               >
-                <div
-                  className={`w-12 h-12 rounded-xl ${AVATAR_COLORS[idx % AVATAR_COLORS.length]} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
-                >
-                  {player.name.charAt(0)}
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-lg border border-slate-700/70 bg-slate-900 flex items-center justify-center">
+                  <img
+                    src={getAvatarUrl(player.name, player.avatar)}
+                    alt={player.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 rounded-xl ring-2 ring-slate-900/40 pointer-events-none" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">

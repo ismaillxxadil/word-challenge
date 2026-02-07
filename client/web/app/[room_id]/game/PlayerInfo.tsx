@@ -9,7 +9,7 @@ interface PlayerInfoProps {
 }
 
 export const PlayerInfo = ({
-  name = "??????",
+  name = "",
   avatar,
   cards = [],
   onVarClick,
@@ -20,10 +20,10 @@ export const PlayerInfo = ({
       dir="rtl"
       className={[
         "flex items-center justify-between gap-2",
-        "w-full max-w-md",
+        "w-full max-w-[260px] min-w-[160px]",
         "px-[clamp(8px,1.5vw,12px)] py-[clamp(6px,1.2vw,10px)]",
         "rounded-xl border border-white/10 bg-white/90 backdrop-blur-md shadow-sm",
-        "min-w-0 sm:min-w-[240px]",
+        "sm:min-w-[240px]",
         className,
       ].join(" ")}
     >
@@ -42,12 +42,12 @@ export const PlayerInfo = ({
 
         <div className="flex flex-col min-w-0 items-start">
           <span
-            className="font-bold text-slate-800 text-[clamp(20px,1.4vw,14px)] truncate max-w-[100px]"
+            className="font-bold text-slate-800 text-[clamp(12px,1.4vw,16px)] truncate max-w-[120px]"
             title={name}
           >
             {name}
           </span>
-          <span className="text-slate-500 font-medium text-[clamp(16px,1.1vw,11px)] truncate">
+          <span className="text-slate-500 font-medium text-[clamp(10px,1.1vw,13px)] truncate">
             {cards.length} بطاقة
           </span>
         </div>

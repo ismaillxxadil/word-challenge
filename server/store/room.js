@@ -18,13 +18,15 @@ export function createEmptyRoom(hostPlayer) {
       phase: "lobby", // "in-game", "voting", "ended"
       turnIndex: 0,
       startedAt: null,
+      // Timestamp for the current turn (used by timer logic)
+      turnStartedAt: null,
       currentPlayerIndex: null,
       centerWord: null,
       playedWords: [],
-      scores: {}, // { playerId: score }
       settings: {
-        cardCount: 7,
-        allowVar: false,
+        startingCards: 7,
+        allowVar: true,
+        timePerTurn: 15,
       },
     },
   };
