@@ -27,6 +27,9 @@ export default function RoomPage() {
   const [joinName, setJoinName] = useState("");
   const [joinError, setJoinError] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+  const [avatar, setAvatar] = useState(
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+  );
 
   // Initialize room connection on mount
   useEffect(() => {
@@ -63,7 +66,7 @@ export default function RoomPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, avatar }),
         },
       );
 
@@ -79,6 +82,7 @@ export default function RoomPage() {
       localStorage.setItem("vc:name", name);
       localStorage.setItem("vc:playerId", playerId);
       localStorage.setItem("vc:roomCode", roomCode);
+      localStorage.setItem("vc:avatar", avatar);
 
       // Close modal and connect to room
       setShowJoinModal(false);
@@ -124,11 +128,15 @@ export default function RoomPage() {
       </main>
     );
   }
-
+  const isGame = room && room.state.phase !== "lobby";
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#0f172a] relative overflow-hidden flex items-center justify-center p-4 font-sans text-slate-100 selection:bg-purple-500 selection:text-white"
+      className={[
+        "min-h-screen bg-[#0f172a] relative overflow-x-hidden font-sans text-slate-100 selection:bg-purple-500 selection:text-white",
+        isGame ? "overflow-y-hidden p-0" : "overflow-y-auto px-4 sm:px-6",
+        isGame ? "block" : "flex items-center justify-center",
+      ].join(" ")}
     >
       {/* خلفية زخرفية */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] translate-x-1/2 -translate-y-1/2"></div>
@@ -140,15 +148,15 @@ export default function RoomPage() {
           handleJoinRoom={handleJoinRoom}
           joinName={joinName}
           setJoinName={setJoinName}
+          avatar={avatar}
+          setAvatar={setAvatar}
           isJoining={isJoining}
           joinError={joinError}
           handleLeave={handleLeave}
           isConnectingToRoom={isConnectingToRoom}
         />
       ) : room.state.phase === "lobby" ? (
-        <div className="animate-fadeIn">
-          <LobbyPage room={room} handleLeave={handleLeave} />
-        </div>
+        <LobbyPage room={room} handleLeave={handleLeave} />
       ) : (
         <div className="animate-fadeIn">
           <GamePage room={room} handleLeave={handleLeave} />
