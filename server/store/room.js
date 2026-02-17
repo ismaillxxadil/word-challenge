@@ -27,6 +27,7 @@ export function createEmptyRoom(hostPlayer) {
         startingCards: 7,
         allowVar: true,
         timePerTurn: 15,
+        varDuration: 15,
       },
     },
   };

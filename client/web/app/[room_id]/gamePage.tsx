@@ -1,13 +1,15 @@
-"use client";
-
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { CenterBoard } from "./game/CenterBoard";
 import { OpponentPlayer } from "./game/OpponentPlayer";
 import { Player } from "./game/player";
 import { Room, Player as RoomPlayer } from "../types";
 import { useRoomStore } from "@/store/useRoomStore";
-import { PlayCard } from "./game/PlayCard"; // Added import
-import { motion, AnimatePresence } from "framer-motion"; // Added import
+import { useSound } from "@/hooks/useSound";
+import { LayoutGroup } from "framer-motion";
+import { FlyingCardLayer, FlyingCardState } from "./game/FlyingCardLayer";
+import { GameOverModal } from "./game/GameOverModal";
+
 
 interface GamePageProps {
   room: Room;
@@ -24,6 +26,7 @@ function getAvatarUrl(player: RoomPlayer) {
 // Main in-game layout driven by real room data
 export default function GamePage({ room, handleLeave }: GamePageProps) {
   const { settings, socket } = useRoomStore();
+  const { play } = useSound();
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(
     settings.timePerTurn ?? 30,
@@ -32,6 +35,12 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   // --- Interaction State ---
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
   const [selectedFace, setSelectedFace] = useState<"A" | "B" | null>(null);
+
+  // animation State
+  const [hiddenCardId, setHiddenCardId] = useState<string | null>(null);
+
+  // what card is currently flying + where it’s going
+  const [flying, setFlying] = useState<FlyingCardState | null>(null);
 
   // Read current player's id from localStorage
   useEffect(() => {
@@ -78,72 +87,138 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   const isMyTurn = state.currentPlayerIndex !== null && 
                    room.players[state.currentPlayerIndex]?.id === currentPlayerId;
 
+
+
+  // --- Game Over Logic ---
+  const isHost = me?.isHost ?? false;
+  // @ts-ignore - winner property might be missing on type definition but exists in runtime
+  const winnerId = state.phase === "game-over" ? state.winner : null;
+  const winnerName = winnerId ? players.find(p => p.id === winnerId)?.name || "لاعب" : "";
+
+  // Sound Effects for Turn and Game Over
+  useEffect(() => {
+    if (isMyTurn) {
+        play("turn");
+    }
+  }, [isMyTurn, play]);
+
+
+
+  // Prevent repeating game over sounds
+  const playedGameOverSoundRef = useRef(false);
+
+  // Reset sound flag when game starts (or phase changes to playing)
+  useEffect(() => {
+     if (state.phase === "in-game" || state.phase === "playing") {
+         playedGameOverSoundRef.current = false;
+     }
+  }, [state.phase]);
+
+  useEffect(() => {
+      if (state.phase === "game-over" && !playedGameOverSoundRef.current) {
+          playedGameOverSoundRef.current = true;
+          if (winnerId === me?.id) {
+              play("win");
+          } else {
+              play("lose");
+          }
+      }
+  }, [state.phase, winnerId, me?.id, play]);
+
+  const handleRestart = () => {
+      play("click");
+      if (socket && room.code) {
+          socket.emit("room:start-game", { roomCode: room.code });
+      }
+  };
+
+  const handleReturnToLobby = () => {
+      play("click");
+      if (socket && room.code) {
+          socket.emit("room:reset-to-lobby", { roomCode: room.code });
+      }
+  };
+
   // --- Interaction Handlers ---
+  const handleCardClick = (index: number, face?: "A" | "B") => {
+      if (!isMyTurn) return; 
 
-  // State for the flying card animation
-  const [flyingCard, setFlyingCard] = useState<{
-      id: string; // unique
-      letterA: string;
-      letterB: string;
-      face: "A" | "B";
-      startRect: DOMRect;
-      targetRect: DOMRect;
-      sourceIndex: number; // Added sourceIndex to hide original card
-      status: "flying-out" | "flying-back" | "success";
-  } | null>(null);
-
-  const handleCardClick = (index: number) => {
-      if (!isMyTurn || flyingCard) return; // underlying interaction blocked while flying
-      
       if (selectedCardIndex === index) {
+           // Toggle face if already selected
            setSelectedFace(prev => prev === "A" ? "B" : "A");
       } else {
+          // Select new card with the face currently shown (or default A)
           setSelectedCardIndex(index);
-          setSelectedFace("A");
+          setSelectedFace(face || "A");
       }
   };
 
   const handleFaceSelect = (index: number, face: "A" | "B") => {
-      if (!isMyTurn || flyingCard) return;
+      if (!isMyTurn) return;
       setSelectedCardIndex(index);
       setSelectedFace(face);
   };
 
   const handleTargetClick = async (targetIndex: number) => {
-    if (selectedCardIndex === null || !selectedFace || !isMyTurn || !socket || flyingCard) return;
+    if (selectedCardIndex === null || !selectedFace || !isMyTurn || !socket) return;
     if (selectedCardIndex >= myCards.length) return;
 
-    // 1. Measure positions
-    const cardEl = document.getElementById(`player-card-${selectedCardIndex}`);
-    const targetEl = document.getElementById(`center-card-${targetIndex}`);
-    
-    if (!cardEl || !targetEl) return;
-    
-    const startRect = cardEl.getBoundingClientRect();
-    const targetRect = targetEl.getBoundingClientRect();
-    
-    // 2. Prepare Data
+    // 1. Prepare Data
     const currentWord = state.centerWord;
-    const card = myCards[selectedCardIndex];
     const cardIdx = selectedCardIndex;
     const face = selectedFace;
 
-    // 3. Clear Selection & Start Animation
-    setSelectedCardIndex(null);
-    setSelectedFace(null);
-    
-    setFlyingCard({
-        id: `fly-${Date.now()}`,
-        letterA: card.letterA,
-        letterB: card.letterB,
-        face: face,
-        startRect,
-        targetRect,
-        sourceIndex: cardIdx, // Store index
-        status: "flying-out"
+    // 2. Clear selection
+    flushSync(() => {
+        setSelectedCardIndex(null);
+        setSelectedFace(null);
     });
+    const card = myCards[selectedCardIndex]; // contains id, letterA, letterB
 
-    // 4. Send move to server
+    // 3. Measure DOM positions
+    const startEl = document.getElementById(`player-card-${cardIdx}`);
+    const targetEl = document.getElementById(`center-card-${targetIndex}`);
+
+    if (startEl && targetEl) {
+      const startRect = startEl.getBoundingClientRect();
+      const targetRect = targetEl.getBoundingClientRect();
+
+      // 4. Start Flight
+      play("play"); // Play sound
+      flushSync(() => {
+        setHiddenCardId(card.id);
+        setFlying({
+          id: `fly-${card.id}-${Date.now()}`,
+          cardId: card.id,
+          letterA: card.letterA,
+          letterB: card.letterB,
+          pick: selectedFace,
+          startRect: {
+            top: startRect.top,
+            left: startRect.left,
+            width: startRect.width,
+            height: startRect.height,
+          },
+          targetRect: {
+            top: targetRect.top,
+            left: targetRect.left,
+            width: targetRect.width,
+            height: targetRect.height,
+          },
+          status: "flying",
+          onComplete: () => {
+             // 5. On flight arrival, switching to "waiting" state
+             setFlying(prev => prev ? { ...prev, status: "waiting" } : null);
+          }
+        });
+
+        // clear selection UI
+        setSelectedCardIndex(null);
+        setSelectedFace(null);
+      });
+    }
+
+    // 5. Send move to server
     socket.emit("room:play-card", {
         roomCode: room.code,
         playerId: currentPlayerId,
@@ -151,43 +226,120 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         pick: face,
         targetIndex: targetIndex,
         currentWord: currentWord
-    }, (response: any) => {
-        if (response?.ok) {
-            if (response.valid !== false) {
-                 // Success! 
-                 // Wait for animation "flying-out" to finish? 
-                 // Actually we can transition to success state or just clear.
-                 // The Room Update will likely happen very fast.
-                 // We want the card to stay at target?
-                 setTimeout(() => {
-                    setFlyingCard(null); 
-                 }, 500);
-            } else {
-                 // Invalid!
-                 // Trigger "fly back"
-                 setFlyingCard(prev => prev ? { ...prev, status: "flying-back" } : null);
-                 
-                 // After flying back, clear
-                 setTimeout(() => {
-                     setFlyingCard(null);
-                 }, 800);
-            }
-        } else {
-            console.error("Play card error:", response?.error);
-             setFlyingCard(prev => prev ? { ...prev, status: "flying-back" } : null);
-             setTimeout(() => {
-                 setFlyingCard(null);
-             }, 800);
-        }
     });
-
   };
+
+
   
   // Listen for specific game events for effects if needed (animations handled by state changes mostly)
   useEffect(() => {
       if (!socket) return;
       return () => {};
   }, [socket]);
+
+  // Sync hidden card state with real hand updates AND handle "Wait & Return"
+  useEffect(() => {
+    if (!hiddenCardId) return;
+
+    // Check if card still exists in my hand
+    // If it's gone, the move was successful (or server removed it).
+    const stillExists = myCards.some((c) => c.id === hiddenCardId);
+
+    if (!stillExists) {
+        // SUCCESS: Server accepted move.
+        // If we are flying or waiting, just clear.
+        if (flying?.cardId === hiddenCardId) {
+             setFlying(null);
+        }
+        setHiddenCardId(null);
+    } else {
+        // Card still exists.
+        // If we are in "waiting" state, it means we reached the target but server hasn't removed card yet.
+        // We should wait a bit, then if it's STILL there, fly back (invalid move or lag).
+        // For now, let's say if we are "waiting" and we get a room update but card is still there...
+        // Actually, "waiting" is triggered by onComplete of flight.
+        
+        if (flying?.status === "waiting" && flying.cardId === hiddenCardId) {
+             // We are waiting. If this runs, it means a render happened (maybe room update).
+             // If card is still here, we might want to trigger return.
+             // But we don't want to return immediately on *any* update (e.g. timer tick).
+             // Let's use a timeout for the return?
+             // Or better: The user said "if not (valid word) ... return".
+             // We assume the server sends an event or update. 
+             // If we get an error or the turn ends without card removal, we return.
+             
+             const timer = setTimeout(() => {
+                  play("invalid");
+                  setFlying(prev => {
+                      if (!prev) return null;
+                      return {
+                          ...prev,
+                          status: "returning",
+                          // target becomes start (play card position)
+                          // start becomes current target (center slot)
+                          // But we don't need to swap them in state if our component handles it.
+                          // However, our FlyingCardLayer expects "targetRect" to be where we go.
+                          // So we MUST swap them.
+                          startRect: prev.targetRect,
+                          targetRect: prev.startRect,
+                          onComplete: () => {
+                              setFlying(null);
+                              setHiddenCardId(null); // Reveal original
+                          }
+                      };
+                  });
+             }, 2000); // Wait 2 seconds for server success
+             return () => clearTimeout(timer);
+        }
+    }
+  }, [myCards, hiddenCardId, flying?.status, flying?.cardId]);
+
+  // Deck to Hand Animation
+  const previousCardsRef = useRef<RoomPlayer["cards"]>([]);
+  useEffect(() => {
+     const prevCards = previousCardsRef.current || [];
+     const newCards = myCards;
+
+     // Detect added cards
+     if (newCards.length > prevCards.length) {
+        const addedCards = newCards.filter(nc => !prevCards.some(pc => pc.id === nc.id));
+        
+        addedCards.forEach((card, i) => {
+           play("draw");
+           
+            // Simple "Fly from Deck" animation
+            // Fly from center bottom/right to hand area
+           setFlying({
+           id: `fly-draw-${card.id}`,
+           cardId: card.id,
+           letterA: card.letterA,
+           letterB: card.letterB,
+           pick: "A", 
+           startRect: {
+               top: window.innerHeight / 2 - 50, // Center of screen
+               left: window.innerWidth / 2 - 40,
+               width: 80,
+               height: 110
+           },
+           targetRect: {
+               top: window.innerHeight - 120, // Near bottom
+               left: window.innerWidth / 2 - 150 + (i * 60) + (Math.random() * 40 - 20), // Rough hand position
+               width: 80,
+               height: 110
+           },
+           status: "flying",
+           onComplete: () => {
+               setFlying(null);
+               setHiddenCardId(null); 
+           }
+          });
+          setHiddenCardId(card.id); 
+       });
+    }
+
+    previousCardsRef.current = newCards;
+ }, [myCards, play]);
+
 
 
   // Timer based on server turnStartedAt (with fallback to startedAt)
@@ -221,7 +373,8 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   const ss = String(remainingSeconds % 60).padStart(2, "0");
 
   return (
-    <div className="relative h-screen w-screen bg-slate-900 bg-[url('/bg.png')] bg-cover bg-center overflow-hidden">
+    <LayoutGroup>
+      <div className="fixed inset-0 w-full h-full bg-slate-900 bg-[url('/bg.png')] bg-cover bg-center overflow-hidden z-0">
       {/* Small overlay header so it doesn't push layout down */}
       <div className="absolute top-2 right-3 z-30 flex items-center gap-2 text-xs text-slate-200">
         <span className="font-mono text-[11px] bg-slate-900/70 px-2 py-1 rounded-lg border border-slate-700">
@@ -229,7 +382,10 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         </span>
         <button
           type="button"
-          onClick={handleLeave}
+          onClick={() => {
+            play("click");
+            handleLeave();
+          }}
           className="px-2 py-1 rounded-lg border border-slate-600 bg-slate-900/70 hover:bg-slate-800 text-[11px]"
         >
           خروج
@@ -257,12 +413,14 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         <div className="row-start-2 col-start-1 relative z-10 flex items-center justify-center rounded-2xl">
           <div className="-rotate-90 origin-center transform translate-y-2 sm:translate-y-4 scale-100">
             {leftOpponent && (
+              <div id={`player-avatar-${leftOpponent.id}`}>
               <OpponentPlayer
                 variant="side"
                 name={leftOpponent.name}
                 avatar={getAvatarUrl(leftOpponent)}
                 cards={leftOpponent.cards ?? []}
               />
+              </div>
             )}
           </div>
         </div>
@@ -286,12 +444,14 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         <div className="row-start-2 col-start-3 relative z-10 flex items-center justify-center rounded-2xl">
           <div className="rotate-90 origin-center transform translate-y-2 sm:translate-y-4 scale-100">
             {rightOpponent && (
-              <OpponentPlayer
+              <div id={`player-avatar-${rightOpponent.id}`}>
+               <OpponentPlayer
                 variant="side"
                 name={rightOpponent.name}
                 avatar={getAvatarUrl(rightOpponent)}
                 cards={rightOpponent.cards ?? []}
               />
+              </div>
             )}
           </div>
         </div>
@@ -306,12 +466,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
               isMyTurn={isMyTurn}
               selectedCardIndex={selectedCardIndex}
               selectedFace={selectedFace}
-              // If flying card is valid and status is NOT "flying-back" (because if it flies back, we want it to reappear/land)
-              // Actually, if it flies back, it flies TO the hand. So the hand card should remain hidden until animation done?
-              // Yes. So if flyingCard exists, hide the card used.
-              // Note: We need to know WHICH card index was used. flyingCard struct doesn't have index.
-              // We should store sourceIndex in flyingCard.
-              hiddenCardIndex={flyingCard?.status !== "success" ? flyingCard?.sourceIndex ?? null : null}
+              hiddenCardId={hiddenCardId}
               onCardClick={handleCardClick}
               onFaceSelect={handleFaceSelect}
             />
@@ -320,52 +475,21 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       </div>
       
       {/* 🚀 FLYING CARD LAYER 🚀 */}
-      {/* 🚀 FLYING CARD LAYER 🚀 */}
-      <AnimatePresence>
-      {flyingCard && (
-         <div className="fixed inset-0 z-[100] pointer-events-none">
-             <motion.div
-                initial={{ 
-                    x: flyingCard.startRect.left, 
-                    y: flyingCard.startRect.top, 
-                    scale: 1,
-                    rotate: 0,
-                    opacity: 1
-                }}
-                animate={
-                    flyingCard.status === "flying-back"
-                    ? { 
-                         // Go back to start
-                         x: flyingCard.startRect.left,
-                         y: flyingCard.startRect.top,
-                         scale: 1,
-                         rotate: -360 // Spin back
-                      }
-                    : {
-                        // Go to target
-                        x: flyingCard.targetRect.left,
-                        y: flyingCard.targetRect.top,
-                        // Optional: Adjust for size difference if needed, but assuming roughly same size
-                        scale: 1.1, 
-                        rotate: 360 // Spin effect
-                      }
-                }
-                exit={{ opacity: 0, scale: 0 }} // Fade out success
-                transition={{ type: "spring", stiffness: 80, damping: 15 }} // Slower spring
-                className="absolute w-[clamp(44px,9vw,96px)] aspect-[2.5/3.5]"
-             >
-                 <PlayCard 
-                    letterA={flyingCard.letterA}
-                    letterB={flyingCard.letterB}
-                    isFlipped={flyingCard.face === "B" ? true : false} 
-                    className="shadow-2xl w-full h-full"
-                 />
-             </motion.div>
-         </div>
-      )}
-      </AnimatePresence>
-    </div>
-  );
+      <FlyingCardLayer flyingCard={flying} />
+
+      {/* 🏆 GAME OVER MODAL 🏆 */}
+      <GameOverModal
+        isVisible={!!winnerId}
+        winnerName={winnerName}
+        isHost={isHost}
+        onRestart={handleRestart}
+        onReturnToLobby={handleReturnToLobby}
+        onLeave={handleLeave}
+      />
+
+      </div>
+    </LayoutGroup>
+  );  
 }
 
 
