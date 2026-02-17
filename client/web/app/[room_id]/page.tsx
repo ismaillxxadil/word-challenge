@@ -6,6 +6,7 @@ import { useRoomStore } from "@/store/useRoomStore";
 import Model from "@/components/Model";
 import LobbyPage from "./LobbyPage";
 import GamePage from "./gamePage";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function RoomPage() {
   const params = useParams<{ room_id: string }>();
@@ -155,12 +156,32 @@ export default function RoomPage() {
           handleLeave={handleLeave}
           isConnectingToRoom={isConnectingToRoom}
         />
-      ) : room.state.phase === "lobby" ? (
-        <LobbyPage room={room} handleLeave={handleLeave} />
       ) : (
-        <div className="animate-fadeIn">
-          <GamePage room={room} handleLeave={handleLeave} />
-        </div>
+        <AnimatePresence mode="wait">
+          {room.state.phase === "lobby" ? (
+            <motion.div
+              key="lobby"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="w-full h-full flex items-center justify-center p-4"
+            >
+              <LobbyPage room={room} handleLeave={handleLeave} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="game"
+              initial={{ opacity: 0, scale: 1.1, filter: "blur(10px)" }}
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="fixed inset-0 z-0"
+            >
+              <GamePage room={room} handleLeave={handleLeave} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
     </main>
   );

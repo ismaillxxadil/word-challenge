@@ -16,10 +16,12 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSound } from "@/hooks/useSound";
 
 export default function VocabularyChallengeHome() {
   const [activeTab, setActiveTab] = useState<"rules" | "howto">("rules");
   const router = useRouter();
+  const { play } = useSound();
 
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +41,7 @@ export default function VocabularyChallengeHome() {
 
   const handleEnterLobby = async (e: React.FormEvent) => {
     e.preventDefault();
+    play("click");
 
     const name = username.trim();
     if (!name) {
@@ -120,14 +123,20 @@ export default function VocabularyChallengeHome() {
           {/* أزرار التبديل بين القوانين وطريقة اللعب */}
           <div className="flex bg-slate-800/50 p-1 rounded-xl mb-6 border border-slate-700/50 relative">
             <button
-              onClick={() => setActiveTab("rules")}
+              onClick={() => {
+                setActiveTab("rules");
+                play("click");
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${activeTab === "rules" ? "bg-slate-700 text-white shadow-md" : "text-slate-400 hover:text-slate-200"}`}
             >
               <ScrollText size={16} />
               قوانين اللعبة
             </button>
             <button
-              onClick={() => setActiveTab("howto")}
+              onClick={() => {
+                setActiveTab("howto");
+                play("click");
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${activeTab === "howto" ? "bg-slate-700 text-white shadow-md" : "text-slate-400 hover:text-slate-200"}`}
             >
               <PlayCircle size={16} />
@@ -279,7 +288,10 @@ export default function VocabularyChallengeHome() {
                     <button
                       key={url}
                       type="button"
-                      onClick={() => setAvatar(url)}
+                      onClick={() => {
+                        setAvatar(url);
+                        play("click");
+                      }}
                       className={[
                         "relative rounded-2xl p-1 border transition-all",
                         "bg-slate-900/50 hover:bg-slate-800",

@@ -54,9 +54,9 @@ export function joinRoom(req, res) {
     if (!room)
       return res.status(404).json({ ok: false, error: "Room not found" });
 
-    /* if (room.players.length >= 4) {
+    if (room.players.length >= 4) {
       return res.status(403).json({ ok: false, error: "Room is full" });
-    } */
+    }
 
     const body = joinSchema.parse(req.body);
 

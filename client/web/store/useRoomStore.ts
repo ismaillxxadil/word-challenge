@@ -73,11 +73,23 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     };
 
     const onSnapshot = (payload: { room: Room }) => {
-      set({ room: payload.room, isConnectingToRoom: false, error: "" });
+      const serverSettings = payload.room.state?.settings;
+      set({ 
+        room: payload.room, 
+        isConnectingToRoom: false, 
+        error: "",
+        // Sync settings from server if they exist
+        settings: serverSettings ? { ...get().settings, ...serverSettings } : get().settings
+      });
     };
 
     const onUpdate = (payload: { room: Room }) => {
-      set({ room: payload.room });
+      const serverSettings = payload.room.state?.settings;
+      set((state) => ({ 
+        room: payload.room,
+        // Sync settings on update too
+        settings: serverSettings ? { ...state.settings, ...serverSettings } : state.settings
+      }));
     };
 
     const onSettingsUpdate = (payload: {
