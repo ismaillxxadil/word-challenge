@@ -219,7 +219,7 @@ function resolveVar(io, room, roomCode, result, reason) {
 
 export function setupSocket(httpServer) {
   const io = new Server(httpServer, {
-    cors: { origin: "http://localhost:3000", credentials: true },
+    cors: { origin: ["http://localhost:3000",process.env.CLIENT_URL], credentials: true },
   });
 
   io.on("connection", (socket) => {
