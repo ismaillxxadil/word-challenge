@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DiceBear Avataaars Gallery</title>
+    <style>
+      body { font-family: system-ui, Arial; padding: 16px; }
+      .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+      input { padding:8px 10px; width:260px; }
+      select, button { padding:8px 10px; }
+      .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap:12px; }
+      .card { border:1px solid #ddd; border-radius:12px; padding:10px; text-align:center; cursor:pointer; }
+      .card:hover { background:#f7f7f7; }
+      .seed { font-size:12px; color:#555; word-break:break-word; margin-top:6px; }
+      .picked { margin-top:14px; padding:12px; border:1px dashed #bbb; border-radius:12px; }
+      code { user-select: all; }
+      img { width:64px; height:64px; }
+    </style>
+  </head>
+  <body>
+    <h2>DiceBear Gallery</h2>
+
+    <div class="bar">
+      <label>Style:</label>
+      <select id="style">
+        <option value="avataaars" selected>avataaars</option>
+        <option value="adventurer">adventurer</option>
+        <option value="bottts">bottts</option>
+        <option value="fun-emoji">fun-emoji</option>
+        <option value="lorelei">lorelei</option>
+        <option value="micah">micah</option>
+        <option value="pixel-art">pixel-art</option>
+      </select>
+
+      <label>Base seed:</label>
+      <input id="base" value="Felix" />
+
+      <label>Count:</label>
+      <select id="count">
+        <option>24</option>
+        <option selected>60</option>
+        <option>120</option>
+      </select>
+
+      <button id="regen">Generate</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="picked" id="picked" style="display:none;">
+      <div><b>Picked URL:</b></div>
+      <div><code id="pickedUrl"></code></div>
+      <div style="margin-top:10px;">
+        <img id="pickedImg" alt="picked avatar" />
+      </div>
+    </div>
+
+    <script>
+      const grid = document.getElementById("grid");
+      const picked = document.getElementById("picked");
+      const pickedUrl = document.getElementById("pickedUrl");
+      const pickedImg = document.getElementById("pickedImg");
+
+      function makeSeeds(base, count) {
+        // Deterministic list: base-001, base-002, ...
+        return Array.from({ length: count }, (_, i) => `${base}-${String(i+1).padStart(3,"0")}`);
+      }
+
+      function urlFor(style, seed) {
+        // You can add options like backgroundColor, etc.
+        return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}`;
+      }
+
+      function render() {
+        grid.innerHTML = "";
+        const style = document.getElementById("style").value;
+        const base = document.getElementById("base").value.trim() || "Felix";
+        const count = Number(document.getElementById("count").value);
+
+        for (const seed of makeSeeds(base, count)) {
+          const u = urlFor(style, seed);
+
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `<img src="${u}" alt="${seed}" /><div class="seed">${seed}</div>`;
+          card.onclick = () => {
+            picked.style.display = "block";
+            pickedUrl.textContent = u;
+            pickedImg.src = u;
+          };
+          grid.appendChild(card);
+        }
+      }
+
+      document.getElementById("regen").onclick = render;
+      render();
+    </script>
+  </body>
+</html>

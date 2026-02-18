@@ -11,7 +11,8 @@ type SoundType =
     | "lose" 
     | "start" 
     | "turn"
-    | "invalid";
+    | "invalid"
+    | "var";
 
 // Map sound types to file paths
 // Note: We'll use the files we found. If not found, it just won't play (or we can handle error)
@@ -24,7 +25,8 @@ const SOUND_PATHS: Record<SoundType, string> = {
     lose: "/sounds/lose.mp3", // create placeholder or handle missing
     start: "/sounds/game_start.mp3", // create placeholder
     turn: "/sounds/your_turn.mp3", // create placeholder
-    invalid: "/sounds/invalid_move.wav"
+    invalid: "/sounds/invalid_move.wav",
+    var: "/sounds/VAR.mp3" // Updated to match existing file
 };
 
 export const useSound = () => {
@@ -37,7 +39,8 @@ export const useSound = () => {
         lose: null,
         start: null,
         turn: null,
-        invalid: null
+        invalid: null,
+        var: null
     });
 
     useEffect(() => {

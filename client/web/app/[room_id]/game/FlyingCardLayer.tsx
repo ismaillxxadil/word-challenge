@@ -69,7 +69,11 @@ export const FlyingCardLayer = ({ flyingCard }: FlyingCardLayerProps) => {
               stiffness: 120, // Lower stiffness for slower/smoother
               damping: 20,    // Adjusted damping
             }}
-            onAnimationComplete={flyingCard.onComplete}
+            onAnimationComplete={() => {
+              if (flyingCard.status !== "waiting") {
+                flyingCard.onComplete();
+              }
+            }}
             className="absolute shadow-2xl origin-center"
           >
             <PlayCard

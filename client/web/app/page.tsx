@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Gamepad2,
   ScrollText,
@@ -17,6 +17,18 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSound } from "@/hooks/useSound";
+import { AvatarSelector } from "@/components/AvatarSelector";
+
+interface FloatingLetter {
+  id: number;
+  char: string;
+  top: number;
+  left: number;
+  size: number;
+  rotate: number;
+  duration: number;
+  delay: number;
+}
 
 export default function VocabularyChallengeHome() {
   const [activeTab, setActiveTab] = useState<"rules" | "howto">("rules");
@@ -27,17 +39,32 @@ export default function VocabularyChallengeHome() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [avatar, setAvatar] = useState(
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=flex-089",
   );
 
-  const AVATAR_OPTIONS = [
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Layla",
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Omar",
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Sara",
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Noor",
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Zayd",
-  ] as const;
+  // حالة لتخزين الحروف العائمة
+  const [backgroundLetters, setBackgroundLetters] = useState<FloatingLetter[]>([]);
+
+  // توليد الحروف العشوائية عند تحميل الصفحة
+  useEffect(() => {
+    const chars = "أبتثجحخدذرزسشصضطظعغفقكلمنهوي";
+    const letterCount = 50; // زيادة عدد الحروف قليلاً
+    const newLetters: FloatingLetter[] = [];
+
+    for (let i = 0; i < letterCount; i++) {
+      newLetters.push({
+        id: i,
+        char: chars.charAt(Math.floor(Math.random() * chars.length)),
+        top: Math.random() * 100, // نسبة مئوية للموقع العمودي
+        left: Math.random() * 100, // نسبة مئوية للموقع الأفقي
+        size: Math.floor(Math.random() * 60) + 20, // حجم الخط بين 20 و 80
+        rotate: Math.floor(Math.random() * 360), // زاوية الدوران الأولية
+        duration: Math.floor(Math.random() * 15) + 10, // مدة الحركة بين 10 و 25 ثانية
+        delay: Math.random() * -20, // نبدأ بتأخير سلبي عشان الحركة تكون شغالة فوراً
+      });
+    }
+    setBackgroundLetters(newLetters);
+  }, []);
 
   const handleEnterLobby = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,8 +122,55 @@ export default function VocabularyChallengeHome() {
       className="min-h-screen bg-[#0f172a] relative overflow-hidden flex items-center justify-center p-4 font-sans text-slate-100 selection:bg-purple-500 selection:text-white"
     >
       {/* خلفية زخرفية */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-600/20 rounded-full blur-[100px] translate-x-1/2 translate-y-1/2 animate-pulse delay-700"></div>
+      {/* ستايل خاص للحركة الانسيابية للحروف */}
+      <style jsx>{`
+        @keyframes float {
+          0% {
+            transform: translate(0px, 0px) rotate(var(--tw-rotate));
+          }
+          33% {
+            transform: translate(30px, -50px) rotate(calc(var(--tw-rotate) + 15deg));
+          }
+          66% {
+            transform: translate(-20px, 20px) rotate(calc(var(--tw-rotate) - 10deg));
+          }
+          100% {
+            transform: translate(0px, 0px) rotate(var(--tw-rotate));
+          }
+        }
+      `}</style>
+
+      {/* === طبقة الخلفية: الحروف المتناثرة === */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        {backgroundLetters.map((letter) => (
+          <div
+            key={letter.id}
+            className="absolute font-black opacity-20 text-slate-500 select-none"
+            style={{
+              top: `${letter.top}%`,
+              left: `${letter.left}%`,
+              fontSize: `${letter.size}px`,
+              // استخدام المتغيرات للدوران
+              transform: `rotate(${letter.rotate}deg)`,
+              // @ts-ignore
+              "--tw-rotate": `${letter.rotate}deg`,
+              
+              // خصائص الحركة
+              animationName: "float",
+              animationDuration: `${letter.duration}s`,
+              animationDelay: `${letter.delay}s`,
+              animationIterationCount: "infinite", // تكرار لا نهائي
+              animationTimingFunction: "ease-in-out", // حركة ناعمة
+            }}
+          >
+            {letter.char}
+          </div>
+        ))}
+      </div>
+
+      {/* خلفية الإضاءة (Blobs) */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2 animate-pulse z-0"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-600/20 rounded-full blur-[100px] translate-x-1/2 translate-y-1/2 animate-pulse delay-700 z-0"></div>
 
       {/* الحاوية الرئيسية */}
       <div className="relative w-full max-w-lg bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl shadow-purple-900/20 overflow-hidden">
@@ -112,7 +186,7 @@ export default function VocabularyChallengeHome() {
                 className="text-purple-400 group-hover:text-purple-300 drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]"
               />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-purple-400 drop-shadow-sm mb-1">
+            <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-purple-400 drop-shadow-sm mb-1 pb-2">
               تحدي المفردات
             </h1>
             <p className="text-slate-400 text-xs font-medium tracking-wide">
@@ -253,7 +327,7 @@ export default function VocabularyChallengeHome() {
                 htmlFor="username"
                 className="text-sm font-semibold text-slate-300 mr-1 block"
               >
-                اسم المحارب
+                اسم اللاعب
               </label>
               <div className="relative group">
                 <div className="absolute top-1/2 -translate-y-1/2 right-4 text-slate-500 group-focus-within:text-purple-400 transition-colors">
@@ -277,42 +351,13 @@ export default function VocabularyChallengeHome() {
             </div>
 
             {/* اختيار الصورة */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-slate-300 mr-1 block">
-                اختر صورتك
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                {AVATAR_OPTIONS.map((url) => {
-                  const isActive = avatar === url;
-                  return (
-                    <button
-                      key={url}
-                      type="button"
-                      onClick={() => {
-                        setAvatar(url);
-                        play("click");
-                      }}
-                      className={[
-                        "relative rounded-2xl p-1 border transition-all",
-                        "bg-slate-900/50 hover:bg-slate-800",
-                        isActive
-                          ? "border-purple-400 ring-2 ring-purple-500/40"
-                          : "border-slate-700",
-                      ].join(" ")}
-                    >
-                      <img
-                        src={url}
-                        alt="اختيار صورة"
-                        className="w-full aspect-square rounded-xl object-cover bg-slate-800"
-                      />
-                      {isActive && (
-                        <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-purple-500 border-2 border-slate-900" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <AvatarSelector
+              selectedAvatar={avatar}
+              onSelect={(url) => {
+                setAvatar(url);
+                play("click");
+              }}
+            />
 
             <button
               type="submit"

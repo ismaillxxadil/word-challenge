@@ -78,11 +78,6 @@ export const Player = ({
                     onFlip={() => handleCardClick(index)}
                     selected={isSelected}
                     pick={isSelected ? selectedFace : null}
-                    onClick={
-                      isMyTurn && onCardClick
-                        ? () => onCardClick(index)
-                        : undefined
-                    }
                     className="shadow-lg hover:shadow-2xl"
                   />
 

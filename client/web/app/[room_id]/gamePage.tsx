@@ -2,13 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { CenterBoard } from "./game/CenterBoard";
 import { OpponentPlayer } from "./game/OpponentPlayer";
+import { Check, X } from "lucide-react";
 import { Player } from "./game/player";
 import { Room, Player as RoomPlayer } from "../types";
 import { useRoomStore } from "@/store/useRoomStore";
 import { useSound } from "@/hooks/useSound";
-import { LayoutGroup } from "framer-motion";
+import { LayoutGroup, AnimatePresence, motion } from "framer-motion";
 import { FlyingCardLayer, FlyingCardState } from "./game/FlyingCardLayer";
 import { GameOverModal } from "./game/GameOverModal";
+import { VarVotingLayer } from "./game/VarVotingLayer";
+import { toast } from "sonner";
 
 
 interface GamePageProps {
@@ -139,6 +142,55 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       }
   };
 
+  const handleVarStart = () => {
+    console.log("🖱️ VAR Button Clicked!");
+    // Temporary alert to confirm interaction
+    // toast.info("🖱️ VAR Button Clicked! Sending request..."); 
+    
+    if (socket && room.code) {
+      play("click");
+      console.log("📡 Emitting var:start for room:", room.code);
+      socket.emit("var:start", { roomCode: room.code });
+    } else {
+      console.error("❌ Socket or Room Code missing!", { socket: !!socket, roomCode: room.code });
+    }
+  };
+
+  // Listen for VAR events
+  const [varResult, setVarResult] = useState<{ result: "ACCEPT" | "REJECT" } | null>(null);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const onVarError = (err: { code: string }) => {
+      console.error("❌ VAR Error received:", err);
+      toast.error(`VAR Error: ${err.code}`);
+    };
+
+    const onVarStarted = (data: any) => {
+      console.log("✅ VAR Session Started:", data);
+      play("var");
+      toast.info("بدأت جلسة الـ VAR! ⚖️");
+    };
+    
+    const onVarResolved = (data: { result: "ACCEPT" | "REJECT" }) => {
+        setVarResult(data);
+        setTimeout(() => {
+            setVarResult(null);
+        }, 3000); // Hide after 3 seconds
+    };
+
+    socket.on("var:error", onVarError);
+    socket.on("var:started", onVarStarted);
+    socket.on("var:resolved", onVarResolved);
+
+    return () => {
+      socket.off("var:error", onVarError);
+      socket.off("var:started", onVarStarted);
+      socket.off("var:resolved", onVarResolved);
+    };
+  }, [socket]);
+
   // --- Interaction Handlers ---
   const handleCardClick = (index: number, face?: "A" | "B") => {
       if (!isMyTurn) return; 
@@ -173,7 +225,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         setSelectedCardIndex(null);
         setSelectedFace(null);
     });
-    const card = myCards[selectedCardIndex]; // contains id, letterA, letterB
+    const card = myCards[cardIdx]; // contains id, letterA, letterB
 
     // 3. Measure DOM positions
     const startEl = document.getElementById(`player-card-${cardIdx}`);
@@ -192,7 +244,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
           cardId: card.id,
           letterA: card.letterA,
           letterB: card.letterB,
-          pick: selectedFace,
+          pick: face,
           startRect: {
             top: startRect.top,
             left: startRect.left,
@@ -211,10 +263,6 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
              setFlying(prev => prev ? { ...prev, status: "waiting" } : null);
           }
         });
-
-        // clear selection UI
-        setSelectedCardIndex(null);
-        setSelectedFace(null);
       });
     }
 
@@ -226,6 +274,17 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         pick: face,
         targetIndex: targetIndex,
         currentWord: currentWord
+    }, (response: { ok: boolean, error?: string }) => {
+        if (!response.ok) {
+            console.error("Play card failed:", response.error);
+            toast.error(response.error || "فشل لعب البطاقة");
+            
+            // Revert UI state
+            flushSync(() => {
+                setHiddenCardId(null);
+                setFlying(null);
+            });
+        }
     });
   };
 
@@ -292,7 +351,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
              return () => clearTimeout(timer);
         }
     }
-  }, [myCards, hiddenCardId, flying?.status, flying?.cardId]);
+  }, [myCards, hiddenCardId, flying?.status, flying?.cardId, play]);
 
   // Deck to Hand Animation
   const previousCardsRef = useRef<RoomPlayer["cards"]>([]);
@@ -369,6 +428,8 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     return () => clearInterval(id);
   }, [state.turnStartedAt, state.startedAt, settings.timePerTurn, room.code, isMyTurn]);
 
+
+
   const mm = String(Math.floor(remainingSeconds / 60)).padStart(2, "0");
   const ss = String(remainingSeconds % 60).padStart(2, "0");
 
@@ -377,6 +438,9 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       <div className="fixed inset-0 w-full h-full bg-slate-900 bg-[url('/bg.png')] bg-cover bg-center overflow-hidden z-0">
       {/* Small overlay header so it doesn't push layout down */}
       <div className="absolute top-2 right-3 z-30 flex items-center gap-2 text-xs text-slate-200">
+        <span className="font-mono text-[10px] bg-red-900/70 px-2 py-1 rounded-lg border border-red-700">
+           Phase: {state.phase}
+        </span>
         <span className="font-mono text-[11px] bg-slate-900/70 px-2 py-1 rounded-lg border border-slate-700">
           غرفة #{room.code}
         </span>
@@ -469,6 +533,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
               hiddenCardId={hiddenCardId}
               onCardClick={handleCardClick}
               onFaceSelect={handleFaceSelect}
+              onVarClick={handleVarStart}
             />
           )}
         </div>
@@ -476,6 +541,49 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       
       {/* 🚀 FLYING CARD LAYER 🚀 */}
       <FlyingCardLayer flyingCard={flying} />
+
+      {/* ⚖️ VAR VOTING LAYER ⚖️ */}
+      <AnimatePresence>
+        {state.phase === "var" && state.varSession && (
+          <VarVotingLayer
+            session={state.varSession}
+            players={players}
+            currentPlayerId={currentPlayerId}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 🏁 VAR RESULT OVERLAY 🏁 */}
+      <AnimatePresence>
+        {varResult && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none"
+          >
+             <div className="bg-slate-900/90 backdrop-blur-md p-8 rounded-3xl border border-slate-700 shadow-2xl flex flex-col items-center gap-4 text-center">
+                 {varResult.result === "ACCEPT" ? (
+                   <>
+                     <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/20 mb-2">
+                       <Check size={48} className="text-white" strokeWidth={3} />
+                     </div>
+                     <h2 className="text-4xl font-black text-green-400">تم قبول الحركة!</h2>
+                     <p className="text-slate-300">الكلمة صحيحة. يستمر اللعب.</p>
+                   </>
+                 ) : (
+                   <>
+                     <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/20 mb-2">
+                       <X size={48} className="text-white" strokeWidth={3} />
+                     </div>
+                     <h2 className="text-4xl font-black text-red-500">تم رفض الحركة!</h2>
+                     <p className="text-slate-300">الكلمة خاطئة. تم إلغاء الحركة.</p>
+                   </>
+                 )}
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 🏆 GAME OVER MODAL 🏆 */}
       <GameOverModal
@@ -491,5 +599,3 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     </LayoutGroup>
   );  
 }
-
-
