@@ -494,6 +494,11 @@ export function setupSocket(httpServer) {
         const card = player.cards[cardIndex];
         const chosenLetter = pick === "B" ? card.letterB : card.letterA;
 
+        // Check if the played letter is the same as the one being replaced
+        if (centerWord[targetIndex] === chosenLetter) {
+             return ack?.({ ok: false, error: "Cannot play the same letter" });
+        }
+
         // Build new word by replacing one letter in center word
         const chars = [...centerWord];
         chars[targetIndex] = chosenLetter;
@@ -585,130 +590,151 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("var:start", ({ roomCode }) => {
-      const room = getRoom(roomCode);
-      if (!room) return;
+      console.log(`[DEBUG] var:start event received for room: ${roomCode} from socket: ${socket.id}`);
+      try {
+        const room = getRoom(roomCode);
+        if (!room) return;
 
-      if (!room.state)
-        return socket.emit("var:error", { code: "INVALID_ROOM_STATE" });
+        if (!room.state)
+          return socket.emit("var:error", { code: "INVALID_ROOM_STATE" });
 
-      // 1) minimum players (3 or 4)
-      if (room.players.length < 3) {
-        socket.emit("var:error", { code: "NOT_ENOUGH_PLAYERS" });
-        return;
+        // 1) minimum players (3 or 4)
+        if (room.players.length < 3) {
+          socket.emit("var:error", { code: "NOT_ENOUGH_PLAYERS" });
+          return;
+        }
+
+        // 2) game must be running
+        console.log(`[DEBUG] Received Room Code: '${roomCode}', Found Room Code: '${room.code}'`);
+        console.log(`[DEBUG] Room Phase: '${room.state.phase}' (Expected: 'in-game')`);
+        
+        if (room.state.phase !== "in-game") {
+          socket.emit("var:error", { code: `NOT_IN_GAME (Phase: ${room.state.phase})` });
+          return;
+        }
+
+        // 3) no active VAR
+        if (room.state.varSession) {
+          socket.emit("var:error", { code: "VAR_ALREADY_ACTIVE" });
+          return;
+        }
+
+        // 4) VAR allowed in settings
+        if (room.state.settings?.allowVar === false) {
+          socket.emit("var:error", { code: "VAR_DISABLED" });
+          return;
+        }
+
+        // 5) who is challenging
+        const challengerId = room.players.find(
+          (p) => p.socketId === socket.id,
+        )?.id;
+        if (!challengerId) {
+          socket.emit("var:error", { code: "NO_PLAYER_ID" });
+          return;
+        }
+
+        // 6) last playable move
+        if (!lastPlay) {
+          socket.emit("var:error", { code: "NO_CHALLENGABLE_MOVE" });
+          return;
+        }
+        const accusedId = lastPlay.playerId;
+
+        // Prevent self-challenge
+        if (challengerId === accusedId) {
+             socket.emit("var:error", { code: "CANNOT_CHALLENGE_SELF" });
+             return;
+        }
+
+        // if player already used VAR in this game, reject
+        const player = room.players.find((p) => p.id === challengerId);
+        if (!player) {
+          socket.emit("var:error", { code: "PLAYER_NOT_FOUND" });
+          return;
+        }
+        if (player.useVar)
+          return socket.emit("var:error", { code: "VAR_ALREADY_USED" });
+        player.useVar = true;
+
+        // 7) eligible voters (everyone except accused)
+        const eligibleVoters = buildEligibleVoters(room, accusedId);
+        const needed = neededToWin(eligibleVoters.length);
+
+        const durationSeconds = getVarDurationSeconds(room);
+        const durationMs = durationSeconds * 1000;
+        const now = Date.now();
+        const expiresAt = now + durationMs;
+
+        // 8) create VAR session
+        const varId = uid();
+
+        room.state.varSession = {
+          id: varId,
+          challengerId,
+          accusedId,
+          eligibleVoters,
+          votes: {},
+          startedAt: now,
+          neededToWin: needed,
+          expiresAt,
+          durationSeconds,
+          // timer: null, // explicit undefined to avoid serialization issues? No, just exclude it.
+          resolved: false,
+
+          snapshot: {
+            at: lastPlay.at,
+            centerWordBefore: lastPlay.centerWordBefore,
+            centerWordAfter: lastPlay.centerWordAfter,
+            move: lastPlay.move,
+          },
+        };
+
+        const timer = setTimeout(() => {
+          const r = getRoom(roomCode);
+          if (!r?.state?.varSession) return;
+
+          const s = r.state.varSession;
+
+          // تأكد أنها نفس جلسة الـ VAR (عشان ما نحسم جلسة قديمة)
+          if (s.id !== varId) return;
+          if (s.resolved) return;
+
+          const { reject } = tallyVotes(s.votes);
+
+          // Option 1:
+          // لو reject ما وصل الحد => ACCEPT
+          const result = reject >= s.neededToWin ? "REJECT" : "ACCEPT";
+
+          resolveVar(io, r, roomCode, result, "timeout");
+        }, durationMs);
+
+        // Make timer non-enumerable so it doesn't get serialized in socket events
+        Object.defineProperty(room.state.varSession, 'timer', {
+          value: timer,
+          writable: true,
+          enumerable: false, // This is the key fix
+          configurable: true
+        });
+
+        // 9) freeze game
+        room.state.phase = "var";
+
+        // 10) broadcast start
+        io.to(roomCode).emit("room:update", { room });
+        io.to(roomCode).emit("var:started", {
+          id: room.state.varSession.id,
+          challengerId,
+          accusedId,
+          eligibleVotersCount: eligibleVoters.length,
+          neededToWin: room.state.varSession.neededToWin,
+          durationSeconds,
+          expiresAt,
+          snapshot: room.state.varSession.snapshot,
+        });
+      } catch (error) {
+        console.error("VAR START CRASH:", error);
       }
-
-      // 2) game must be running
-      if (room.state.phase !== "in-game") {
-        socket.emit("var:error", { code: "NOT_IN_GAME" });
-        return;
-      }
-
-      // 3) no active VAR
-      if (room.state.varSession) {
-        socket.emit("var:error", { code: "VAR_ALREADY_ACTIVE" });
-        return;
-      }
-
-      // 4) VAR allowed in settings
-      if (room.state.settings?.allowVar === false) {
-        socket.emit("var:error", { code: "VAR_DISABLED" });
-        return;
-      }
-
-      // 5) who is challenging
-      const challengerId = room.players.find(
-        (p) => p.socketId === socket.id,
-      )?.id;
-      if (!challengerId) {
-        socket.emit("var:error", { code: "NO_PLAYER_ID" });
-        return;
-      }
-
-      // 6) last playable move
-      const lastPlay = getLastChallengablePlay(room);
-      if (!lastPlay) {
-        socket.emit("var:error", { code: "NO_CHALLENGABLE_MOVE" });
-        return;
-      }
-      const accusedId = lastPlay.playerId;
-
-      // if player already used VAR in this game, reject
-      const player = room.players.find((p) => p.id === challengerId);
-      if (!player) {
-        socket.emit("var:error", { code: "PLAYER_NOT_FOUND" });
-        return;
-      }
-      if (player.useVar)
-        return socket.emit("var:error", { code: "VAR_ALREADY_USED" });
-      player.useVar = true;
-
-      // 7) eligible voters (everyone except accused)
-      const eligibleVoters = buildEligibleVoters(room, accusedId);
-      const needed = neededToWin(eligibleVoters.length);
-
-      const durationSeconds = getVarDurationSeconds(room);
-      const durationMs = durationSeconds * 1000;
-      const now = Date.now();
-      const expiresAt = now + durationMs;
-
-      // 8) create VAR session
-      const varId = uid();
-
-      room.state.varSession = {
-        id: varId,
-        challengerId,
-        accusedId,
-        eligibleVoters,
-        votes: {},
-        startedAt: now,
-        neededToWin: needed,
-        expiresAt,
-        durationSeconds,
-        timer: null,
-        resolved: false,
-
-        snapshot: {
-          at: lastPlay.at,
-          centerWordBefore: lastPlay.centerWordBefore,
-          centerWordAfter: lastPlay.centerWordAfter,
-          move: lastPlay.move,
-        },
-      };
-
-      room.state.varSession.timer = setTimeout(() => {
-        const r = getRoom(roomCode);
-        if (!r?.state?.varSession) return;
-
-        const s = r.state.varSession;
-
-        // تأكد أنها نفس جلسة الـ VAR (عشان ما نحسم جلسة قديمة)
-        if (s.id !== varId) return;
-        if (s.resolved) return;
-
-        const { reject } = tallyVotes(s.votes);
-
-        // Option 1:
-        // لو reject ما وصل الحد => ACCEPT
-        const result = reject >= s.neededToWin ? "REJECT" : "ACCEPT";
-
-        resolveVar(io, r, roomCode, result, "timeout");
-      }, durationMs);
-
-      // 9) freeze game
-      room.state.phase = "var";
-
-      // 10) broadcast start
-      io.to(roomCode).emit("room:update", { room });
-      io.to(roomCode).emit("var:started", {
-        id: room.state.varSession.id,
-        challengerId,
-        accusedId,
-        eligibleVotersCount: eligibleVoters.length,
-        neededToWin: room.state.varSession.neededToWin,
-        durationSeconds,
-        expiresAt,
-        snapshot: room.state.varSession.snapshot,
-      });
     });
 
     socket.on("var:vote", ({ roomCode, choice }) => {
@@ -788,6 +814,7 @@ export function setupSocket(httpServer) {
         rejectCount,
         voters: Object.keys(s.votes),
       });
+      io.to(roomCode).emit("room:update", { room });
       // Step 4: early resolve + all-voted resolve
       const { accept, reject } = tallyVotes(s.votes);
 

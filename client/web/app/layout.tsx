@@ -1,21 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Lalezar, Cairo } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const lalezar = Lalezar({
+  variable: "--font-lalezar",
+  subsets: ["arabic"],
+  weight: "400",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const cairo = Cairo({
+  variable: "--font-cairo",
+  subsets: ["arabic"],
 });
 
 export const metadata: Metadata = {
   title: "تحدي المفردات",
   description: "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة.",
 };
+
+import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
@@ -25,9 +28,10 @@ export default function RootLayout({
   return (
     <html lang="ar">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${lalezar.variable} ${cairo.variable} antialiased font-sans`}
       >
         {children}
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );

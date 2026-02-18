@@ -12,6 +12,7 @@ import {
   Crown,
   ShieldAlert,
   Trash2,
+  LogOut,
 } from "lucide-react";
 import { useRoomStore } from "@/store/useRoomStore";
 import { Room } from "@/app/types";
@@ -73,13 +74,6 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
 
   return (
     <>
-      {/* زر المغادرة - أعلى يمين */}
-      <button
-        onClick={handleLeave}
-        className="absolute top-6 left-6 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-slate-100 rounded-lg border border-slate-700 hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-[0.95] z-10"
-      >
-        مغادرة
-      </button>
 
       <div className="relative w-full max-w-6xl xl:max-w-7xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
         {/* === القسم الأيمن: إعدادات الغرفة ومعلومات الرابط === */}
@@ -180,36 +174,64 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
 
             {/* إعداد الـ VAR */}
             <div
-              className={`flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800 ${!isHost ? "opacity-50" : ""}`}
+              className={`flex flex-col gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-800 ${!isHost ? "opacity-50" : ""}`}
             >
-              <div className="flex items-center gap-2">
-                <ShieldAlert
-                  size={16}
-                  className={
-                    settings.allowVar ? "text-yellow-400" : "text-slate-600"
-                  }
-                />
-                <span className="text-xs font-medium text-slate-300">
-                  تفعيل نظام VAR
-                </span>
-              </div>
-              <div
-                onClick={() => {
-                  if (isHost) {
-                    handleSettingsChange({
-                      ...settings,
-                      allowVar: !settings.allowVar,
-                    });
-                  }
-                }}
-                className={`w-10 h-5 rounded-full relative transition-colors ${
-                  settings.allowVar ? "bg-green-500/20" : "bg-slate-700"
-                } ${isHost ? "cursor-pointer" : "cursor-not-allowed"}`}
-              >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert
+                    size={16}
+                    className={
+                      settings.allowVar ? "text-yellow-400" : "text-slate-600"
+                    }
+                  />
+                  <span className="text-xs font-medium text-slate-300">
+                    تفعيل نظام VAR
+                  </span>
+                </div>
                 <div
-                  className={`absolute top-1 w-3 h-3 rounded-full transition-all duration-300 ${settings.allowVar ? "left-1 bg-green-400" : "left-6 bg-slate-400"}`}
-                ></div>
+                  onClick={() => {
+                    if (isHost) {
+                      handleSettingsChange({
+                        ...settings,
+                        allowVar: !settings.allowVar,
+                      });
+                    }
+                  }}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${
+                    settings.allowVar ? "bg-green-500/20" : "bg-slate-700"
+                  } ${isHost ? "cursor-pointer" : "cursor-not-allowed"}`}
+                >
+                  <div
+                    className={`absolute top-1 w-3 h-3 rounded-full transition-all duration-300 ${settings.allowVar ? "left-1 bg-green-400" : "left-6 bg-slate-400"}`}
+                  ></div>
+                </div>
               </div>
+
+              {settings.allowVar && (
+                <div className="space-y-2 pt-2 border-t border-slate-800/50">
+                  <div className="flex justify-between text-xs text-slate-400 font-medium">
+                    <span>مدة التصويت</span>
+                    <span className="text-yellow-300">
+                      {settings.varDuration || 15} ثانية
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="15"
+                    max="120"
+                    step="5"
+                    value={settings.varDuration || 15}
+                    onChange={(e) =>
+                      handleSettingsChange({
+                        ...settings,
+                        varDuration: parseInt(e.target.value),
+                      })
+                    }
+                    disabled={!isHost}
+                    className={`w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-500 hover:accent-yellow-400 ${!isHost ? "cursor-not-allowed" : ""}`}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </aside>
@@ -226,15 +248,25 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
                 ({players.length}/4)
               </span>
             </h1>
-            <span
-              className={`px-3 py-1 text-xs font-bold rounded-full border animate-pulse ${
-                players.length === 4
-                  ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                  : "bg-green-500/10 text-green-400 border-green-500/20"
-              }`}
-            >
-              {players.length === 4 ? "جاهز للبدء!" : "في الانتظار..."}
-            </span>
+            <div className="flex items-center gap-3">
+              <span
+                className={`px-3 py-1 text-xs font-bold rounded-full border animate-pulse ${
+                  players.length === 4
+                    ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                    : "bg-green-500/10 text-green-400 border-green-500/20"
+                }`}
+              >
+                {players.length === 4 ? "جاهز للبدء!" : "في الانتظار..."}
+              </span>
+
+              <button
+                onClick={handleLeave}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-slate-100 rounded-lg border border-slate-700 hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-[0.95]"
+              >
+                <LogOut size={14} />
+                مغادرة
+              </button>
+            </div>
           </div>
 
           {/* شبكة اللاعبين */}

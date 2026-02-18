@@ -9,7 +9,12 @@ interface RoomStore {
   error: string;
   showJoinModal: boolean;
   isConnectingToRoom: boolean;
-  settings: { timePerTurn: number; startingCards: number; allowVar: boolean };
+  settings: {
+    timePerTurn: number;
+    startingCards: number;
+    allowVar: boolean;
+    varDuration?: number;
+  };
   roomLinkCopied: boolean;
 
   // Actions
@@ -21,6 +26,7 @@ interface RoomStore {
     timePerTurn: number;
     startingCards: number;
     allowVar: boolean;
+    varDuration?: number;
   }) => void;
   setRoomLinkCopied: (copied: boolean) => void;
   initializeSocket: () => Socket;
@@ -40,6 +46,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     timePerTurn: 15,
     startingCards: 7,
     allowVar: true,
+    varDuration: 15,
   },
 
   setRoom: (room) => set({ room }),
