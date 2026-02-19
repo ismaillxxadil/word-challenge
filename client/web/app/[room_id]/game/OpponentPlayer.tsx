@@ -9,6 +9,8 @@ interface OpponentPlayerProps {
   onVarClick?: () => void;
   className?: string;
   variant?: "top" | "side";
+  isActiveTurn?: boolean;
+  isOnline?: boolean;
 }
 
 export const OpponentPlayer = ({
@@ -18,6 +20,8 @@ export const OpponentPlayer = ({
   onVarClick,
   className = "",
   variant = "top",
+  isActiveTurn = false,
+  isOnline = true,
 }: OpponentPlayerProps) => {
   const isSide = variant === "side";
   return (
@@ -55,6 +59,8 @@ export const OpponentPlayer = ({
         avatar={avatar}
         cards={cards}
         onVarClick={onVarClick}
+        isActiveTurn={isActiveTurn}
+        isOnline={isOnline}
         className={`origin-bottom transition-all ${
           isSide
             ? // Changed minimum from 160px to 250px

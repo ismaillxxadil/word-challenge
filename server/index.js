@@ -8,13 +8,10 @@ import { setupSocket } from "./socket.js";
 
 const app = express();
 
+console.log(process.env.CLIENT_URL, process.env.NGROK_URL);
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      process.env.CLIENT_URL,
-      process.env.NGROK_URL,
-    ],
+    origin: true,
     credentials: true,
   }),
 );

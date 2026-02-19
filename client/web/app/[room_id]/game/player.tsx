@@ -10,9 +10,12 @@ interface playerProps {
   avatar?: string;
   cards?: { id: string; letterA: string; letterB: string }[];
   onVarClick?: () => void;
+  varDisabledReason?: string | null;
   className?: string;
   // Interaction props
   isMyTurn?: boolean;
+  isActiveTurn?: boolean;
+  isOnline?: boolean;
   selectedCardIndex?: number | null;
   selectedFace?: "A" | "B" | null;
   hiddenCardId?: string | null; // Changed from index to ID
@@ -25,8 +28,11 @@ export const Player = ({
   avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
   cards = [],
   onVarClick = () => {},
+  varDisabledReason,
   className = "",
   isMyTurn = false,
+  isActiveTurn = false,
+  isOnline = true,
   selectedCardIndex = null,
   selectedFace = null,
   hiddenCardId = null,
@@ -116,8 +122,11 @@ export const Player = ({
       <PlayerInfo
         cards={cards}
         onVarClick={onVarClick}
+        varDisabledReason={varDisabledReason}
         name={name}
         avatar={avatar}
+        isActiveTurn={isActiveTurn}
+        isOnline={isOnline}
       />
     </div>
   );

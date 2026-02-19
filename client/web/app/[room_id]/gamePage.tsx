@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { CenterBoard } from "./game/CenterBoard";
 import { OpponentPlayer } from "./game/OpponentPlayer";
-import { Check, X } from "lucide-react";
+import { Check, X, RotateCcw, Home, LogOut } from "lucide-react";
 import { Player } from "./game/player";
 import { Room, Player as RoomPlayer } from "../types";
 import { useRoomStore } from "@/store/useRoomStore";
@@ -55,6 +55,10 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
 
   const state = room.state;
   const players = room.players;
+  const activePlayerId =
+    state.currentPlayerIndex !== null
+      ? room.players[state.currentPlayerIndex]?.id ?? null
+      : null;
 
   const {
     me,
@@ -92,6 +96,33 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     state.currentPlayerIndex !== null &&
     room.players[state.currentPlayerIndex]?.id === currentPlayerId;
 
+  const lastChallengablePlay = useMemo(() => {
+    const list = state.playedWords || [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const p = list[i];
+      if (p && p.ok === true && p.centerWordBefore && p.centerWordAfter && p.move)
+        return p;
+    }
+    return null;
+  }, [state.playedWords]);
+
+  const varBlockReason = useMemo(() => {
+    if (state.phase !== "in-game") return "VAR is only available during the game.";
+    if (state.settings?.allowVar === false) return "VAR is disabled in room settings.";
+    if (players.length < 3) return "VAR needs at least 3 players.";
+    if (!currentPlayerId) return "Missing player id. Rejoin the room.";
+    if (!lastChallengablePlay) return "No valid move to challenge yet.";
+    if (lastChallengablePlay.playerId === currentPlayerId)
+      return "You cannot challenge your own move.";
+    return null;
+  }, [
+    state.phase,
+    state.settings?.allowVar,
+    players.length,
+    currentPlayerId,
+    lastChallengablePlay,
+  ]);
+
   // --- Game Over Logic ---
   const isHost = me?.isHost ?? false;
   const winnerId = state.phase === "game-over" ? state.winner : null;
@@ -127,8 +158,12 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     }
   }, [state.phase, winnerId, me?.id, play]);
 
+  // Restart Animation State
+  const [isRestarting, setIsRestarting] = useState(false);
+
   const handleRestart = () => {
     play("click");
+    // setIsRestarting(true); // Now prompted by server event
     if (socket && room.code) {
       socket.emit("room:start-game", { roomCode: room.code });
     }
@@ -142,22 +177,27 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   };
 
   const handleVarStart = () => {
-    console.log("🖱️ VAR Button Clicked!");
+    console.log("VAR Button Clicked");
     // Temporary alert to confirm interaction
-    // toast.info("🖱️ VAR Button Clicked! Sending request...");
+    // toast.info("VAR Button Clicked! Sending request...");
+
+    if (varBlockReason) {
+      toast.error(varBlockReason);
+      return;
+    }
 
     if (socket && room.code) {
       play("click");
-      console.log("📡 Emitting var:start for room:", room.code);
+      console.log("Emitting var:start for room:", room.code);
       socket.emit("var:start", { roomCode: room.code });
     } else {
-      console.error("❌ Socket or Room Code missing!", {
+      toast.error("Socket not ready. Try again in a moment.");
+      console.error("Socket or Room Code missing!", {
         socket: !!socket,
         roomCode: room.code,
       });
     }
   };
-
   // Listen for VAR events
   const [varResult, setVarResult] = useState<{
     result: "ACCEPT" | "REJECT";
@@ -188,10 +228,18 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     socket.on("var:started", onVarStarted);
     socket.on("var:resolved", onVarResolved);
 
+    // Listen for game restart to trigger animation for EVERYONE
+    const onGameRestarted = () => {
+       setIsRestarting(true);
+       setTimeout(() => setIsRestarting(false), 2000);
+    };
+    socket.on("game:restarted", onGameRestarted);
+
     return () => {
       socket.off("var:error", onVarError);
       socket.off("var:started", onVarStarted);
       socket.off("var:resolved", onVarResolved);
+      socket.off("game:restarted", onGameRestarted);
     };
   }, [socket]);
 
@@ -448,23 +496,46 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   return (
     <LayoutGroup>
       <div className="fixed inset-0 w-full h-full bg-slate-900 bg-[url('/bg.png')] bg-cover bg-center overflow-hidden z-0">
-        {/* Small overlay header so it doesn't push layout down */}
-        <div className="absolute top-2 right-3 z-30 flex items-center gap-2 text-xs text-slate-200">
-          <span className="font-mono text-[10px] bg-red-900/70 px-2 py-1 rounded-lg border border-red-700">
-            Phase: {state.phase}
-          </span>
-          <span className="font-mono text-[11px] bg-slate-900/70 px-2 py-1 rounded-lg border border-slate-700">
-            غرفة #{room.code}
-          </span>
+        {/* Modern Game Header */}
+        {/* Modern Compact Header */}
+        <div className="absolute top-3 right-3 z-40 flex items-center p-1 gap-1 bg-slate-950/60 backdrop-blur-md rounded-2xl border border-slate-700/40 shadow-sm">
+          {/* Room Code */}
+          <div className="px-3 py-1 flex items-center justify-center text-slate-400 font-mono text-xs font-bold border-l border-white/5 ml-1">
+            #{room.code}
+          </div>
+
+          {isHost && (
+            <>
+              <button
+                type="button"
+                onClick={handleRestart}
+                title="إعادة اللعب"
+                className="w-7 h-7 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95 transition-all duration-200"
+              >
+                <RotateCcw size={14} strokeWidth={2.5} />
+              </button>
+              <button
+                type="button"
+                onClick={handleReturnToLobby}
+                title="العودة للوبي"
+                className="w-7 h-7 flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white hover:shadow-lg hover:shadow-blue-500/20 active:scale-95 transition-all duration-200"
+              >
+                <Home size={14} strokeWidth={2.5} />
+              </button>
+              <div className="w-px h-4 bg-slate-700/50 mx-0.5" />
+            </>
+          )}
+
           <button
             type="button"
             onClick={() => {
               play("click");
               handleLeave();
             }}
-            className="px-2 py-1 rounded-lg border border-slate-600 bg-slate-900/70 hover:bg-slate-800 text-[11px]"
+            title="خروج"
+            className="w-7 h-7 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white hover:shadow-lg hover:shadow-red-500/20 active:scale-95 transition-all duration-200"
           >
-            خروج
+            <LogOut size={14} strokeWidth={2.5} className="ml-0.5" />
           </button>
         </div>
 
@@ -480,6 +551,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                 name={topOpponent.name}
                 avatar={getAvatarUrl(topOpponent)}
                 cards={topOpponent.cards ?? []}
+                isActiveTurn={topOpponent.id === activePlayerId}
                 className="pb-3"
               />
             )}
@@ -495,6 +567,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                     name={leftOpponent.name}
                     avatar={getAvatarUrl(leftOpponent)}
                     cards={leftOpponent.cards ?? []}
+                    isActiveTurn={leftOpponent.id === activePlayerId}
                   />
                 </div>
               )}
@@ -526,6 +599,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                     name={rightOpponent.name}
                     avatar={getAvatarUrl(rightOpponent)}
                     cards={rightOpponent.cards ?? []}
+                    isActiveTurn={rightOpponent.id === activePlayerId}
                   />
                 </div>
               )}
@@ -540,6 +614,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                 avatar={getAvatarUrl(me)}
                 cards={myCards}
                 isMyTurn={isMyTurn}
+                isActiveTurn={me.id === activePlayerId}
                 selectedCardIndex={selectedCardIndex}
                 selectedFace={selectedFace}
                 hiddenCardId={hiddenCardId}
@@ -599,6 +674,29 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                   </>
                 )}
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 🔄 RESTART ANIMATION 🔄 */}
+        <AnimatePresence>
+          {isRestarting && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-none"
+            >
+              <motion.div
+                initial={{ scale: 0.5, rotate: 0 }}
+                animate={{ scale: 1, rotate: 360 }}
+                exit={{ scale: 1.5, opacity: 0 }}
+                transition={{ duration: 0.8, ease: "easeInOut" }}
+                className="text-emerald-400"
+              >
+                <RotateCcw size={80} strokeWidth={1.5} className="animate-spin" />
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

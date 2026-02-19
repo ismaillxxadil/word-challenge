@@ -80,22 +80,29 @@ export function VarVotingLayer({
         {/* Scrollable Content */}
         <div className="p-4 md:p-8 overflow-y-auto custom-scrollbar">
           {/* Replay Section */}
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 mb-8">
-            {/* Before */}
+          <div className="flex flex-row flex-wrap items-center justify-center gap-2 md:gap-8 mb-8">
+           
+            {/* After */}
             <div className="flex flex-col items-center">
               <span className="text-[10px] md:text-xs text-slate-500 uppercase font-bold mb-1">
-                قبل
+                بعد
               </span>
-              <div className="bg-slate-800 px-3 py-2 md:px-4 rounded-xl text-xl md:text-2xl font-mono text-slate-300 border border-slate-700">
-                {centerWordBefore}
+              <div
+                className={`px-2 py-1 md:px-4 rounded-xl text-sm md:text-2xl font-mono font-bold border transition-colors duration-500 ${
+                  timeLeft % 2 === 0 
+                  ? "bg-red-950/50 text-red-400 border-red-500/50" 
+                  : "bg-slate-800 text-slate-300 border-slate-700"
+                }`}
+              >
+                {centerWordAfter}
               </div>
             </div>
 
             {/* Arrow */}
-            <div className="text-slate-600 rotate-90 md:rotate-0">➜</div>
+            <div className="text-slate-600">➜</div>
 
             {/* The Move */}
-            <div className="relative group">
+            <div className="relative group scale-75 md:scale-100">
               <div className="w-16 h-24 md:w-20 md:h-28 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl shadow-lg flex flex-col items-center justify-center border-2 border-yellow-400/50 relative overflow-hidden">
                  {/* Card shiny effect */}
                  <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none"></div>
@@ -122,23 +129,18 @@ export function VarVotingLayer({
             </div>
 
             {/* Arrow */}
-            <div className="text-slate-600 rotate-90 md:rotate-0">➜</div>
+            <div className="text-slate-600">➜</div>
 
-            {/* After */}
+             {/* Before */}
             <div className="flex flex-col items-center">
               <span className="text-[10px] md:text-xs text-slate-500 uppercase font-bold mb-1">
-                بعد
+                قبل
               </span>
-              <div
-                className={`px-3 py-2 md:px-4 rounded-xl text-xl md:text-2xl font-mono font-bold border transition-colors duration-500 ${
-                  timeLeft % 2 === 0 
-                  ? "bg-red-950/50 text-red-400 border-red-500/50" 
-                  : "bg-slate-800 text-slate-300 border-slate-700"
-                }`}
-              >
-                {centerWordAfter}
+              <div className="bg-slate-800 px-2 py-1 md:px-4 rounded-xl text-sm md:text-2xl font-mono text-slate-300 border border-slate-700">
+                {centerWordBefore}
               </div>
             </div>
+           
           </div>
 
           {/* Voting Controls */}

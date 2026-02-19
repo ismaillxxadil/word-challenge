@@ -220,11 +220,7 @@ function resolveVar(io, room, roomCode, result, reason) {
 export function setupSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: [
-        "http://localhost:3000",
-        process.env.CLIENT_URL,
-        process.env.NGROK_URL,
-      ],
+      origin: true,
       credentials: true,
     },
   });
@@ -409,6 +405,8 @@ export function setupSocket(httpServer) {
         centerWord,
         currentPlayerIndex: startingPlayerIndex,
       });
+      // Emit restart event for animation
+      io.to(roomCode).emit("game:restarted");
       io.to(roomCode).emit("room:update", { room });
     });
 
@@ -650,6 +648,7 @@ export function setupSocket(httpServer) {
         }
 
         // 6) last playable move
+        const lastPlay = getLastChallengablePlay(room);
         if (!lastPlay) {
           socket.emit("var:error", { code: "NO_CHALLENGABLE_MOVE" });
           return;
