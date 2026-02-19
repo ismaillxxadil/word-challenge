@@ -82,40 +82,51 @@ export default function VocabularyChallengeHome() {
     setError("");
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/room`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, avatar }),
-      });
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
-      const data = await res.json();
+  if (!API) {
+    throw new Error("NEXT_PUBLIC_API_URL is missing (check Vercel env + redeploy)");
+  }
 
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "Failed to create room");
-      }
+  const res = await fetch(`${API}/room`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, avatar }),
+  });
 
-      const { roomCode, playerId } = data;
+  const text = await res.text(); // 👈 مهم
+  let data: any = null;
 
-      // خزّن بيانات اللاعب محليًا عشان صفحة اللوبي تستخدمها
-      localStorage.setItem("vc:name", name);
-      localStorage.setItem("vc:playerId", playerId);
-      localStorage.setItem("vc:roomCode", roomCode);
-      localStorage.setItem("vc:avatar", avatar);
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`Non-JSON response (HTTP ${res.status}): ${text?.slice(0, 120)}`);
+  }
 
-      // روح لصفحة اللوبي
-      router.push(`/${roomCode}`);
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : typeof err === "string"
-            ? err
-            : "حدث خطأ غير متوقع";
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || `Failed (HTTP ${res.status})`);
+  }
+
+  const { roomCode, playerId } = data;
+
+  localStorage.setItem("vc:name", name);
+  localStorage.setItem("vc:playerId", playerId);
+  localStorage.setItem("vc:roomCode", roomCode);
+  localStorage.setItem("vc:avatar", avatar);
+
+  router.push(`/${roomCode}`);
+} catch (err: unknown) {
+  const errorMessage =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : "حدث خطأ غير متوقع";
+  setError(errorMessage);
+} finally {
+  setIsLoading(false);
+}
+
 
   return (
     <main
