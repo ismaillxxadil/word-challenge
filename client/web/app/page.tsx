@@ -43,7 +43,9 @@ export default function VocabularyChallengeHome() {
   );
 
   // حالة لتخزين الحروف العائمة
-  const [backgroundLetters, setBackgroundLetters] = useState<FloatingLetter[]>([]);
+  const [backgroundLetters, setBackgroundLetters] = useState<FloatingLetter[]>(
+    [],
+  );
 
   // توليد الحروف العشوائية عند تحميل الصفحة
   useEffect(() => {
@@ -83,7 +85,6 @@ export default function VocabularyChallengeHome() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/room`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ name, avatar }),
       });
 
@@ -129,10 +130,12 @@ export default function VocabularyChallengeHome() {
             transform: translate(0px, 0px) rotate(var(--tw-rotate));
           }
           33% {
-            transform: translate(30px, -50px) rotate(calc(var(--tw-rotate) + 15deg));
+            transform: translate(30px, -50px)
+              rotate(calc(var(--tw-rotate) + 15deg));
           }
           66% {
-            transform: translate(-20px, 20px) rotate(calc(var(--tw-rotate) - 10deg));
+            transform: translate(-20px, 20px)
+              rotate(calc(var(--tw-rotate) - 10deg));
           }
           100% {
             transform: translate(0px, 0px) rotate(var(--tw-rotate));
@@ -152,9 +155,10 @@ export default function VocabularyChallengeHome() {
               fontSize: `${letter.size}px`,
               // استخدام المتغيرات للدوران
               transform: `rotate(${letter.rotate}deg)`,
-              // @ts-ignore
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-expect-errornode index.js
               "--tw-rotate": `${letter.rotate}deg`,
-              
+
               // خصائص الحركة
               animationName: "float",
               animationDuration: `${letter.duration}s`,

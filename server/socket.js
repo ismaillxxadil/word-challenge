@@ -219,7 +219,14 @@ function resolveVar(io, room, roomCode, result, reason) {
 
 export function setupSocket(httpServer) {
   const io = new Server(httpServer, {
-    cors: { origin: ["http://localhost:3000",process.env.CLIENT_URL], credentials: true },
+    cors: {
+      origin: [
+        "http://localhost:3000",
+        process.env.CLIENT_URL,
+        process.env.NGROK_URL,
+      ],
+      credentials: true,
+    },
   });
 
   io.on("connection", (socket) => {
@@ -496,7 +503,7 @@ export function setupSocket(httpServer) {
 
         // Check if the played letter is the same as the one being replaced
         if (centerWord[targetIndex] === chosenLetter) {
-             return ack?.({ ok: false, error: "Cannot play the same letter" });
+          return ack?.({ ok: false, error: "Cannot play the same letter" });
         }
 
         // Build new word by replacing one letter in center word
@@ -590,7 +597,9 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("var:start", ({ roomCode }) => {
-      console.log(`[DEBUG] var:start event received for room: ${roomCode} from socket: ${socket.id}`);
+      console.log(
+        `[DEBUG] var:start event received for room: ${roomCode} from socket: ${socket.id}`,
+      );
       try {
         const room = getRoom(roomCode);
         if (!room) return;
@@ -605,11 +614,17 @@ export function setupSocket(httpServer) {
         }
 
         // 2) game must be running
-        console.log(`[DEBUG] Received Room Code: '${roomCode}', Found Room Code: '${room.code}'`);
-        console.log(`[DEBUG] Room Phase: '${room.state.phase}' (Expected: 'in-game')`);
-        
+        console.log(
+          `[DEBUG] Received Room Code: '${roomCode}', Found Room Code: '${room.code}'`,
+        );
+        console.log(
+          `[DEBUG] Room Phase: '${room.state.phase}' (Expected: 'in-game')`,
+        );
+
         if (room.state.phase !== "in-game") {
-          socket.emit("var:error", { code: `NOT_IN_GAME (Phase: ${room.state.phase})` });
+          socket.emit("var:error", {
+            code: `NOT_IN_GAME (Phase: ${room.state.phase})`,
+          });
           return;
         }
 
@@ -643,8 +658,8 @@ export function setupSocket(httpServer) {
 
         // Prevent self-challenge
         if (challengerId === accusedId) {
-             socket.emit("var:error", { code: "CANNOT_CHALLENGE_SELF" });
-             return;
+          socket.emit("var:error", { code: "CANNOT_CHALLENGE_SELF" });
+          return;
         }
 
         // if player already used VAR in this game, reject
@@ -710,11 +725,11 @@ export function setupSocket(httpServer) {
         }, durationMs);
 
         // Make timer non-enumerable so it doesn't get serialized in socket events
-        Object.defineProperty(room.state.varSession, 'timer', {
+        Object.defineProperty(room.state.varSession, "timer", {
           value: timer,
           writable: true,
           enumerable: false, // This is the key fix
-          configurable: true
+          configurable: true,
         });
 
         // 9) freeze game
