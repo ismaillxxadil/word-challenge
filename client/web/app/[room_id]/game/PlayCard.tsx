@@ -52,8 +52,10 @@ export const PlayCard = ({
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
       <motion.div
-        className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d]`}
+        className={`relative w-full h-full [transform-style:preserve-3d]`}
+        initial={{ rotateY: isFlipped ? 180 : 0 }}
         animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 20 }}
       >
         {/* FACE A (Front) */}
         <div

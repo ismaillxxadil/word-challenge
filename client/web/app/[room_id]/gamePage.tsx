@@ -43,8 +43,8 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   // animation State
   const [hiddenCardId, setHiddenCardId] = useState<string | null>(null);
 
-  // what card is currently flying + where it’s going
-  const [flying, setFlying] = useState<FlyingCardState | null>(null);
+  // what cards are currently flying + where they are going
+  const [flyingCards, setFlyingCards] = useState<FlyingCardState[]>([]);
 
   // Read current player's id from localStorage
   useEffect(() => {
@@ -63,11 +63,9 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   const {
     me,
     others,
-    centerWordCards,
   }: {
     me: RoomPlayer | undefined;
     others: RoomPlayer[];
-    centerWordCards: { letterA: string; letterB: string }[];
   } = useMemo(() => {
     const idx =
       currentPlayerId != null
@@ -75,17 +73,60 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         : -1;
     const mePlayer = idx >= 0 ? players[idx] : undefined;
     const othersPlayers = players.filter((p) => p.id !== currentPlayerId);
-    const word = state.centerWord || ""; // 3-letter word
-    const centerCards = word.split("").map((ch) => ({
-      letterA: ch,
-      letterB: ch,
-    }));
     return {
       me: mePlayer,
       others: othersPlayers,
-      centerWordCards: centerCards,
     };
-  }, [players, state.centerWord, currentPlayerId]);
+  }, [players, currentPlayerId]);
+
+  // Visual Center Word State (used to delay visual update until animation finishes)
+  const [visualCenterWord, setVisualCenterWord] = useState(state.centerWord || "");
+  const centerWordCards = useMemo(() => {
+    return (visualCenterWord || "").split("").map((ch) => ({
+      letterA: ch,
+      letterB: ch,
+    }));
+  }, [visualCenterWord]);
+
+  // Sync visual word with server word
+  const pendingCenterWordRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // When the server word updates, queue it
+    if (state.centerWord && state.centerWord !== visualCenterWord) {
+      pendingCenterWordRef.current = state.centerWord;
+    }
+  }, [state.centerWord]);
+
+  useEffect(() => {
+    // Check if there's any active flight targeting the center
+    // We treat ANY flight as potentially interfering just to be safe, 
+    // or specifically large cards (width > 60). Let's use any flight that isn't returning.
+    const hasActiveCenterFlight = flyingCards.some(
+      (c) => c.isCenter && c.status === "flying"
+    );
+
+    // If there are no center flights and we have a queued word, apply it now
+    if (!hasActiveCenterFlight && pendingCenterWordRef.current !== null) {
+      if (pendingCenterWordRef.current !== visualCenterWord) {
+        setVisualCenterWord(pendingCenterWordRef.current);
+      }
+      pendingCenterWordRef.current = null;
+    }
+  }, [flyingCards, visualCenterWord, state.centerWord]);
+
+  // Fallback: if somehow a card gets stuck, force sync after a short delay
+  useEffect(() => {
+    if (pendingCenterWordRef.current !== null) {
+      const timer = setTimeout(() => {
+        if (pendingCenterWordRef.current !== null) {
+          setVisualCenterWord(pendingCenterWordRef.current);
+          pendingCenterWordRef.current = null;
+        }
+      }, 1000); 
+      return () => clearTimeout(timer);
+    }
+  }, [pendingCenterWordRef.current, state.centerWord]);
 
   const myCards = me?.cards ?? [];
   const topOpponent = others[0];
@@ -290,32 +331,44 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
 
       // 4. Start Flight
       play("play"); // Play sound
+      const flyId = `fly-${card.id}-${Date.now()}`;
+      
       flushSync(() => {
         setHiddenCardId(card.id);
-        setFlying({
-          id: `fly-${card.id}-${Date.now()}`,
-          cardId: card.id,
-          letterA: card.letterA,
-          letterB: card.letterB,
-          pick: face,
-          startRect: {
-            top: startRect.top,
-            left: startRect.left,
-            width: startRect.width,
-            height: startRect.height,
+        setFlyingCards((prev) => [
+          ...prev,
+          {
+            id: flyId,
+            cardId: card.id,
+            letterA: card.letterA,
+            letterB: card.letterB,
+            pick: face,
+            isCenter: true,
+            startRect: {
+              top: startRect.top,
+              left: startRect.left,
+              width: startRect.width,
+              height: startRect.height,
+            },
+            targetRect: {
+              top: targetRect.top,
+              left: targetRect.left,
+              width: targetRect.width,
+              height: targetRect.height,
+            },
+            status: "flying",
+            onComplete: () => {
+              // 5. On flight arrival, switching to "waiting" state
+              setFlyingCards((prev) =>
+                prev.map((c) =>
+                  c.id === flyId
+                    ? { ...c, status: "waiting" }
+                    : c,
+                ),
+              );
+            },
           },
-          targetRect: {
-            top: targetRect.top,
-            left: targetRect.left,
-            width: targetRect.width,
-            height: targetRect.height,
-          },
-          status: "flying",
-          onComplete: () => {
-            // 5. On flight arrival, switching to "waiting" state
-            setFlying((prev) => (prev ? { ...prev, status: "waiting" } : null));
-          },
-        });
+        ]);
       });
     }
 
@@ -330,7 +383,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         targetIndex: targetIndex,
         currentWord: currentWord,
       },
-      (response: { ok: boolean; error?: string }) => {
+      (response: { ok: boolean; error?: string; valid?: boolean; win?: boolean }) => {
         if (!response.ok) {
           console.error("Play card failed:", response.error);
           toast.error(response.error || "فشل لعب البطاقة");
@@ -338,8 +391,25 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
           // Revert UI state
           flushSync(() => {
             setHiddenCardId(null);
-            setFlying(null);
+            setFlyingCards((prev) => prev.filter((c) => c.cardId !== card.id));
           });
+        } else if (response.valid === false) {
+           play("invalid");
+           setFlyingCards((prev) =>
+             prev.map((c) => {
+               if (c.cardId !== card.id) return c;
+               return {
+                 ...c,
+                 status: "returning",
+                 onComplete: () => {
+                   setFlyingCards((p) =>
+                     p.filter((fc) => fc.cardId !== card.id),
+                   );
+                   setHiddenCardId(null); // Reveal original
+                 },
+               };
+             }),
+           );
         }
       },
     );
@@ -361,55 +431,48 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
 
     if (!stillExists) {
       // SUCCESS: Server accepted move.
-      // If we are flying or waiting, just clear.
-      if (flying?.cardId === hiddenCardId) {
-        setFlying(null);
+      // Only clear if the animation has finished reaching the target
+      const flyingTarget = flyingCards.find((c) => c.cardId === hiddenCardId);
+      
+      if (!flyingTarget || flyingTarget.status === "waiting") {
+        setFlyingCards((prev) => prev.filter((c) => c.cardId !== hiddenCardId));
+        setHiddenCardId(null);
       }
-      setHiddenCardId(null);
     } else {
       // Card still exists.
       // If we are in "waiting" state, it means we reached the target but server hasn't removed card yet.
       // We should wait a bit, then if it's STILL there, fly back (invalid move or lag).
-      // For now, let's say if we are "waiting" and we get a room update but card is still there...
-      // Actually, "waiting" is triggered by onComplete of flight.
-
-      if (flying?.status === "waiting" && flying.cardId === hiddenCardId) {
-        // We are waiting. If this runs, it means a render happened (maybe room update).
-        // If card is still here, we might want to trigger return.
-        // But we don't want to return immediately on *any* update (e.g. timer tick).
-        // Let's use a timeout for the return?
-        // Or better: The user said "if not (valid word) ... return".
-        // We assume the server sends an event or update.
-        // If we get an error or the turn ends without card removal, we return.
-
+      const flyingTarget = flyingCards.find((c) => c.cardId === hiddenCardId);
+      if (flyingTarget?.status === "waiting") {
         const timer = setTimeout(() => {
           play("invalid");
-          setFlying((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              status: "returning",
-              // target becomes start (play card position)
-              // start becomes current target (center slot)
-              // But we don't need to swap them in state if our component handles it.
-              // However, our FlyingCardLayer expects "targetRect" to be where we go.
-              // So we MUST swap them.
-              startRect: prev.targetRect,
-              targetRect: prev.startRect,
-              onComplete: () => {
-                setFlying(null);
-                setHiddenCardId(null); // Reveal original
-              },
-            };
-          });
+          setFlyingCards((prev) =>
+            prev.map((c) => {
+              if (c.cardId !== hiddenCardId) return c;
+              return {
+                ...c,
+                status: "returning",
+                onComplete: () => {
+                  setFlyingCards((p) =>
+                    p.filter((fc) => fc.cardId !== hiddenCardId),
+                  );
+                  setHiddenCardId(null); // Reveal original
+                },
+              };
+            }),
+          );
         }, 2000); // Wait 2 seconds for server success
         return () => clearTimeout(timer);
       }
     }
-  }, [myCards, hiddenCardId, flying?.status, flying?.cardId, play]);
+  }, [myCards, hiddenCardId, flyingCards, play]);
 
   // Deck to Hand Animation
   const previousCardsRef = useRef<RoomPlayer["cards"]>([]);
+  
+  // Track cards that should be drawn but might need to wait for a return animation
+  const [pendingDrawCards, setPendingDrawCards] = useState<NonNullable<RoomPlayer["cards"]>>([]);
+
   useEffect(() => {
     const prevCards = previousCardsRef.current || [];
     const newCards = myCards;
@@ -419,43 +482,214 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       const addedCards = newCards.filter(
         (nc) => !prevCards.some((pc) => pc.id === nc.id),
       );
+      setPendingDrawCards(prev => [...prev, ...addedCards]);
+    }
 
-      addedCards.forEach((card, i) => {
-        play("draw");
+    previousCardsRef.current = newCards;
+  }, [myCards]);
 
-        // Simple "Fly from Deck" animation
-        // Fly from center bottom/right to hand area
-        setFlying({
-          id: `fly-draw-${card.id}`,
+  // Process pending draw animations when there's no active returning flight
+  useEffect(() => {
+    if (!pendingDrawCards || pendingDrawCards.length === 0) return;
+
+    // Is there an active returning flight for the local player?
+    const hasReturningLocalFlight = flyingCards.some(
+      (c) => c.status === "returning" && hiddenCardId !== null && c.cardId === hiddenCardId
+    );
+
+    if (hasReturningLocalFlight) {
+      // Wait for it to finish
+      return;
+    }
+
+    // Otherwise, dispatch draws
+    pendingDrawCards.forEach((card, i) => {
+      // Start the draw sound
+      setTimeout(() => play("draw"), i * 150);
+
+      // Smooth "Fly from Deck" animation
+      const deckEl = document.getElementById("deck-stack");
+      const startRect = deckEl?.getBoundingClientRect() || {
+        top: window.innerHeight / 2 - 50,
+        left: window.innerWidth / 2 - 40,
+        width: 80,
+        height: 110,
+      };
+
+      const flyId = `fly-draw-${card.id}-${Date.now()}`;
+      setFlyingCards((prev) => [
+        ...prev,
+        {
+          id: flyId,
           cardId: card.id,
           letterA: card.letterA,
           letterB: card.letterB,
           pick: "A",
+          isDraw: true,
           startRect: {
-            top: window.innerHeight / 2 - 50, // Center of screen
-            left: window.innerWidth / 2 - 40,
-            width: 80,
-            height: 110,
+            top: startRect.top,
+            left: startRect.left,
+            width: startRect.width,
+            height: startRect.height,
           },
           targetRect: {
             top: window.innerHeight - 120, // Near bottom
-            left:
-              window.innerWidth / 2 - 150 + i * 60 + (Math.random() * 40 - 20), // Rough hand position
+            left: window.innerWidth / 2 - 150 + (myCards.length * 60) + (Math.random() * 40 - 20), // Rough hand position
             width: 80,
             height: 110,
           },
           status: "flying",
           onComplete: () => {
-            setFlying(null);
+            setFlyingCards((p) => p.filter((c) => c.id !== flyId));
             setHiddenCardId(null);
           },
-        });
-        setHiddenCardId(card.id);
+        },
+      ]);
+    });
+
+    setPendingDrawCards([]);
+  }, [pendingDrawCards, flyingCards, hiddenCardId, myCards.length, play]);
+
+  // Opponent Draw Animation
+  const previousOthersRef = useRef<{ id: string; count: number }[]>([]);
+  useEffect(() => {
+    const currentOthers = others.map((o) => ({
+      id: o.id,
+      count: o.cards?.length || 0,
+    }));
+
+    if (previousOthersRef.current.length > 0) {
+      currentOthers.forEach((curr) => {
+        const prev = previousOthersRef.current.find((p) => p.id === curr.id);
+        if (prev && curr.count > prev.count) {
+          const cardsDrawn = curr.count - prev.count;
+          
+          for (let i = 0; i < cardsDrawn; i++) {
+            setTimeout(() => {
+              play("draw");
+              const opponentAvatarEl = document.getElementById(
+                `player-avatar-${curr.id}`,
+              );
+              
+              if (opponentAvatarEl) {
+                const targetRect = opponentAvatarEl.getBoundingClientRect();
+                const flyId = `fly-opp-draw-${curr.id}-${Date.now()}-${i}`;
+                
+                setFlyingCards((p) => [
+                  ...p,
+                  {
+                    id: flyId,
+                    cardId: flyId, // Mock ID
+                    letterA: "",
+                    letterB: "",
+                    pick: "A",
+                    isHidden: true,
+                    isDraw: true,
+                    startRect: {
+                      top: window.innerHeight / 2 - 50,
+                      left: window.innerWidth / 2 - 40,
+                      width: 80,
+                      height: 110,
+                    },
+                    targetRect: {
+                      top: targetRect.top,
+                      left: targetRect.left,
+                      width: 50,
+                      height: 70,
+                    },
+                    status: "flying",
+                    onComplete: () => {
+                      setFlyingCards((prev) =>
+                        prev.filter((c) => c.id !== flyId),
+                      );
+                    },
+                  },
+                ]);
+              }
+            }, i * 150);
+          }
+        }
       });
     }
 
-    previousCardsRef.current = newCards;
-  }, [myCards, play]);
+    previousOthersRef.current = currentOthers;
+  }, [others, play]);
+
+  // Opponent Play Animation
+  const previousPlayedWordsLengthRef = useRef(state.playedWords?.length || 0);
+  useEffect(() => {
+    const playedWords = state.playedWords || [];
+    if (playedWords.length > previousPlayedWordsLengthRef.current) {
+      // Find new plays
+      const newPlays = playedWords.slice(
+        previousPlayedWordsLengthRef.current,
+      );
+
+      newPlays.forEach((playItem) => {
+        // Only trigger animation for OTHER players' successful moves
+        if (
+          playItem.ok &&
+          playItem.playerId &&
+          playItem.playerId !== currentPlayerId &&
+          playItem.move
+        ) {
+          const { move } = playItem;
+          const opponentAvatarEl = document.getElementById(
+            `player-avatar-${playItem.playerId}`,
+          );
+          const targetCardEl = document.getElementById(
+            `center-card-${move.targetIndex}`,
+          );
+
+          if (opponentAvatarEl && targetCardEl) {
+            const startRect = opponentAvatarEl.getBoundingClientRect();
+            const targetRect = targetCardEl.getBoundingClientRect();
+
+            play("play"); // Play sound
+            const flyId = `fly-opp-${move.card.id}-${Date.now()}`;
+            
+            setFlyingCards((prev) => [
+              ...prev,
+              {
+                id: flyId,
+                cardId: move.card.id,
+                letterA: move.card.letterA,
+                letterB: move.card.letterB,
+                pick: move.pick,
+                isCenter: true,
+                startRect: {
+                  top: startRect.top,
+                  left: startRect.left,
+                  width: 50, // rough guess for small opponent card
+                  height: 70,
+                },
+                targetRect: {
+                  top: targetRect.top,
+                  left: targetRect.left,
+                  width: targetRect.width,
+                  height: targetRect.height,
+                },
+                status: "flying",
+                onComplete: () => {
+                  setFlyingCards((p) =>
+                    p.map((c) =>
+                      c.id === flyId ? { ...c, status: "waiting" } : c,
+                    ),
+                  );
+                  // Since we are not responsible for deleting it from opponent hand,
+                  // we just fade it out quickly after arrival
+                  setTimeout(() => {
+                    setFlyingCards((p) => p.filter((c) => c.id !== flyId));
+                  }, 400); // give it a moment to show impact
+                },
+              },
+            ]);
+          }
+        }
+      });
+    }
+    previousPlayedWordsLengthRef.current = playedWords.length;
+  }, [state.playedWords, currentPlayerId, play]);
 
   // Timer based on server turnStartedAt (with fallback to startedAt)
   useEffect(() => {
@@ -547,13 +781,15 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
               {mm}:{ss}
             </div>
             {topOpponent && (
-              <OpponentPlayer
-                name={topOpponent.name}
-                avatar={getAvatarUrl(topOpponent)}
-                cards={topOpponent.cards ?? []}
-                isActiveTurn={topOpponent.id === activePlayerId}
-                className="pb-3"
-              />
+              <div id={`player-avatar-${topOpponent.id}`}>
+                <OpponentPlayer
+                  name={topOpponent.name}
+                  avatar={getAvatarUrl(topOpponent)}
+                  cards={topOpponent.cards ?? []}
+                  isActiveTurn={topOpponent.id === activePlayerId}
+                  className="pb-3"
+                />
+              </div>
             )}
           </div>
 
@@ -627,7 +863,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         </div>
 
         {/* 🚀 FLYING CARD LAYER 🚀 */}
-        <FlyingCardLayer flyingCard={flying} />
+        <FlyingCardLayer flyingCards={flyingCards} />
 
         {/* ⚖️ VAR VOTING LAYER ⚖️ */}
         <AnimatePresence>

@@ -12,20 +12,22 @@ export interface FlyingCardState {
   startRect: { top: number; left: number; width: number; height: number };
   targetRect: { top: number; left: number; width: number; height: number };
   status: "flying" | "waiting" | "returning";
+  isHidden?: boolean;
+  isDraw?: boolean;
+  isCenter?: boolean;
   onComplete: () => void;
 }
 
 interface FlyingCardLayerProps {
-  flyingCard: FlyingCardState | null;
+  flyingCards: FlyingCardState[];
 }
 
-export const FlyingCardLayer = ({ flyingCard }: FlyingCardLayerProps) => {
+export const FlyingCardLayer = ({ flyingCards }: FlyingCardLayerProps) => {
   return (
     <AnimatePresence>
-      {flyingCard && (
-        <div className="fixed inset-0 pointer-events-none z-[9999]">
+      {flyingCards && flyingCards.map((flyingCard) => (
+        <div key={flyingCard.id} className="fixed inset-0 pointer-events-none z-[9999]">
           <motion.div
-            key={flyingCard.id}
             initial={{
               top: flyingCard.startRect.top,
               left: flyingCard.startRect.left,
@@ -35,8 +37,8 @@ export const FlyingCardLayer = ({ flyingCard }: FlyingCardLayerProps) => {
               scale: 1,
               rotate: 0,
             }}
-            animate={
-               flyingCard.status === "flying" ? {
+             animate={
+                 flyingCard.status === "flying" ? {
                   top: flyingCard.targetRect.top,
                   left: flyingCard.targetRect.left,
                   width: flyingCard.targetRect.width,
@@ -64,11 +66,22 @@ export const FlyingCardLayer = ({ flyingCard }: FlyingCardLayerProps) => {
                   scale: 1,
                }
             }
-            transition={{
-              type: "spring",
-              stiffness: 120, // Lower stiffness for slower/smoother
-              damping: 20,    // Adjusted damping
-            }}
+            transition={
+              flyingCard.isDraw
+                ? {
+                    // Smooth arc for drawing cards
+                    top: { type: "tween", ease: "easeIn", duration: 0.5 },
+                    left: { type: "tween", ease: "easeOut", duration: 0.5 },
+                    width: { duration: 0.5 },
+                    height: { duration: 0.5 },
+                    rotate: { duration: 0.5 },
+                  }
+                : {
+                    type: "spring",
+                    stiffness: 120, // Lower stiffness for slower/smoother
+                    damping: 20, // Adjusted damping
+                  }
+            }
             onAnimationComplete={() => {
               if (flyingCard.status !== "waiting") {
                 flyingCard.onComplete();
@@ -80,13 +93,14 @@ export const FlyingCardLayer = ({ flyingCard }: FlyingCardLayerProps) => {
               letterA={flyingCard.letterA}
               letterB={flyingCard.letterB}
               pick={flyingCard.pick}
-              isFlipped={false} 
+              isFlipped={flyingCard.isHidden ? false : flyingCard.pick === "B"} 
+              isHidden={flyingCard.isHidden}
               selected={true} // Highlighting flight
               className="w-full h-full !shadow-none"
             />
           </motion.div>
         </div>
-      )}
+      ))}
     </AnimatePresence>
   );
 };
