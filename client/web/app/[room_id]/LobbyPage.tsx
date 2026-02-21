@@ -208,28 +208,54 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
               </div>
 
               {settings.allowVar && (
-                <div className="space-y-2 pt-2 border-t border-slate-800/50">
-                  <div className="flex justify-between text-xs text-slate-400 font-medium">
-                    <span>مدة التصويت</span>
-                    <span className="text-yellow-300">
-                      {settings.varDuration || 15} ثانية
-                    </span>
+                <div className="space-y-4 pt-2 border-t border-slate-800/50">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-slate-400 font-medium">
+                      <span>مدة التبرير</span>
+                      <span className="text-pink-300">
+                        {settings.varExplanationDuration || 15} ثانية
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="60"
+                      step="5"
+                      value={settings.varExplanationDuration || 15}
+                      onChange={(e) =>
+                        handleSettingsChange({
+                          ...settings,
+                          varExplanationDuration: parseInt(e.target.value),
+                        })
+                      }
+                      disabled={!isHost}
+                      className={`w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500 hover:accent-pink-400 ${!isHost ? "cursor-not-allowed" : ""}`}
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min="15"
-                    max="120"
-                    step="5"
-                    value={settings.varDuration || 15}
-                    onChange={(e) =>
-                      handleSettingsChange({
-                        ...settings,
-                        varDuration: parseInt(e.target.value),
-                      })
-                    }
-                    disabled={!isHost}
-                    className={`w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-500 hover:accent-yellow-400 ${!isHost ? "cursor-not-allowed" : ""}`}
-                  />
+
+                  <div className="space-y-2 pt-2 border-t border-slate-700/50">
+                    <div className="flex justify-between text-xs text-slate-400 font-medium">
+                      <span>مدة التصويت</span>
+                      <span className="text-yellow-300">
+                        {settings.varDuration || 15} ثانية
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="15"
+                      max="120"
+                      step="5"
+                      value={settings.varDuration || 15}
+                      onChange={(e) =>
+                        handleSettingsChange({
+                          ...settings,
+                          varDuration: parseInt(e.target.value),
+                        })
+                      }
+                      disabled={!isHost}
+                      className={`w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-500 hover:accent-yellow-400 ${!isHost ? "cursor-not-allowed" : ""}`}
+                    />
+                  </div>
                 </div>
               )}
             </div>

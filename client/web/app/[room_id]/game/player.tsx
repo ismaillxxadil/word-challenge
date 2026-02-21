@@ -21,6 +21,8 @@ interface playerProps {
   hiddenCardId?: string | null; // Changed from index to ID
   onCardClick?: (index: number, face?: "A" | "B") => void;
   onFaceSelect?: (index: number, face: "A" | "B") => void;
+  playerId: string;
+  isMe?: boolean;
 }
 
 export const Player = ({
@@ -38,6 +40,8 @@ export const Player = ({
   hiddenCardId = null,
   onCardClick,
   onFaceSelect,
+  playerId,
+  isMe = false,
 }: playerProps) => {
   const { play } = useSound();
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({});
@@ -120,6 +124,8 @@ export const Player = ({
 
       {/* Controls */}
       <PlayerInfo
+        playerId={playerId}
+        isMe={isMe}
         cards={cards}
         onVarClick={onVarClick}
         varDisabledReason={varDisabledReason}

@@ -1,6 +1,17 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRoomStore } from "@/store/useRoomStore";
+
+const EMOJIS = ["😂", "😍", "😡", "😭", "👍", "👎", "🔥", "🤔"];
+
+interface EmojiReaction {
+  id: string;
+  emoji: string;
+}
 
 interface PlayerInfoProps {
+  playerId: string;
+  isMe?: boolean;
   name: string;
   avatar: string;
   cards?: { letterA: string; letterB: string }[];
@@ -12,6 +23,8 @@ interface PlayerInfoProps {
 }
 
 export const PlayerInfo = ({
+  playerId,
+  isMe = false,
   name = "",
   avatar,
   cards = [],
@@ -21,6 +34,46 @@ export const PlayerInfo = ({
   isActiveTurn = false,
   isOnline = true,
 }: PlayerInfoProps) => {
+  const { socket, room } = useRoomStore();
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactions, setReactions] = useState<EmojiReaction[]>([]);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReceiveEmoji = (data: { playerId: string; emoji: string }) => {
+      // Only process emojis meant for THIS specific player's avatar
+      if (data.playerId === playerId) {
+        const id = `${Date.now()}-${Math.random()}`;
+        setReactions((prev) => [...prev, { id, emoji: data.emoji }]);
+
+        // Remove the emoji after animation completes
+        setTimeout(() => {
+          setReactions((prev) => prev.filter((r) => r.id !== id));
+        }, 2000); // match animation duration roughly
+      }
+    };
+
+    socket.on("room:receive-emoji", handleReceiveEmoji);
+
+    return () => {
+      socket.off("room:receive-emoji", handleReceiveEmoji);
+    };
+  }, [socket, playerId]);
+
+  const sendEmoji = (emoji: string) => {
+    if (!socket || !room) return;
+    
+    socket.emit("room:send-emoji", {
+      roomCode: room.code,
+      playerId,
+      emoji,
+    });
+    
+    setShowEmojiPicker(false);
+  };
+
   return (
     <div
       dir="rtl"
@@ -70,6 +123,24 @@ export const PlayerInfo = ({
           {isActiveTurn && isOnline && (
              <span className="absolute -inset-1 rounded-full border border-emerald-400/40 animate-pulse" />
           )}
+
+          {/* Floating Emojis Container */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none z-50">
+            <AnimatePresence>
+              {reactions.map((reaction) => (
+                <motion.div
+                  key={reaction.id}
+                  initial={{ opacity: 0, scale: 0.5, y: 0 }}
+                  animate={{ opacity: 1, scale: 1, y: -40 }}
+                  exit={{ opacity: 0, scale: 0.8, y: -50 }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className="absolute bottom-0 text-3xl filter drop-shadow-md"
+                >
+                  {reaction.emoji}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         </div>
 
         <div className="flex flex-col min-w-0 items-start">
@@ -85,23 +156,83 @@ export const PlayerInfo = ({
         </div>
       </div>
 
-      {/* VAR Button */}
-      <button
-        type="button"
-        onClick={onVarClick}
-        disabled={!onVarClick || !!varDisabledReason}
-        aria-disabled={!onVarClick || !!varDisabledReason}
-        title={varDisabledReason || "تحدي VAR"}
-        className={[
-          "shrink-0 inline-flex items-center gap-1.5 rounded-lg font-bold transition-all shadow-md border-b-2 px-[clamp(10px,1.8vw,14px)] py-[clamp(4px,1vw,8px)] text-[clamp(10px,1.2vw,12px)] ml-[clamp(6px,1.5vw,12px)]",
-          onVarClick && !varDisabledReason
-            ? "bg-slate-900 text-white hover:bg-slate-800 active:scale-95 border-slate-950"
-            : "bg-slate-400/40 text-slate-500 border-slate-500/30 cursor-not-allowed opacity-70",
-        ].join(" ")}
-      >
-        {/*  <span aria-hidden></span> */}
-        <span>VAR</span>
-      </button>
+      <div className="flex items-center gap-2">
+        {/* Emoji Trigger Button & Picker (Only for current user) */}
+        {isMe && (
+          <div className="relative">
+            <button
+              ref={toggleRef}
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="w-[28px] h-[28px] sm:w-[32px] sm:h-[32px] rounded-full bg-slate-800/80 hover:bg-slate-700 text-white flex items-center justify-center text-sm shadow-sm transition-transform active:scale-95 border border-white/5"
+              title="تفاعل"
+            >
+              😊
+            </button>
+
+            {/* Framer Motion Emoji Picker */}
+            <AnimatePresence>
+              {showEmojiPicker && (
+                <>
+                  {/* Backdrop to close picker on click outside */}
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowEmojiPicker(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="absolute bottom-full right-0 mb-2 p-2 bg-slate-800 border border-slate-700 rounded-2xl shadow-xl z-50 grid grid-cols-4 gap-1.5 w-max"
+                  >
+                    {EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => sendEmoji(emoji)}
+                        className="text-xl sm:text-2xl p-1.5 hover:scale-125 transition-transform hover:bg-white/10 rounded-lg"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* VAR Button / Indicator */}
+        {(!varDisabledReason || (!varDisabledReason.includes("VAR is disabled in room settings") && !varDisabledReason.includes("needs at least 3 players"))) && (
+          isMe ? (
+            !varDisabledReason?.includes("VAR_ALREADY_USED") && (
+              <button
+                type="button"
+                onClick={onVarClick}
+                title={varDisabledReason || "تحدي VAR"}
+                className={[
+                  "shrink-0 inline-flex items-center gap-1.5 rounded-lg font-bold transition-all shadow-md border-b-2 px-[clamp(8px,1.5vw,12px)] py-[clamp(2px,0.8vw,6px)] text-[clamp(9px,1vw,11px)]",
+                  !varDisabledReason
+                    ? "bg-slate-900 text-white hover:bg-slate-800 active:scale-95 border-slate-950"
+                    : "bg-slate-400/40 text-slate-500 border-slate-500/30 active:scale-95 opacity-70"
+                ].join(" ")}
+              >
+                <span>VAR</span>
+              </button>
+            )
+          ) : (
+            !varDisabledReason?.includes("VAR_ALREADY_USED") && (
+              <div
+                title="بطاقة VAR المتاحة"
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg font-bold shadow-md border-b-2 px-[clamp(8px,1.5vw,12px)] py-[clamp(2px,0.8vw,6px)] text-[clamp(9px,1vw,11px)] bg-slate-400/20 text-slate-400 border-slate-500/20 opacity-80 cursor-default select-none"
+              >
+                <span>VAR</span>
+              </div>
+            )
+          )
+        )}
+      </div>
     </div>
   );
 };

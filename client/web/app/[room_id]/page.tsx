@@ -29,7 +29,7 @@ export default function RoomPage() {
   const [joinError, setJoinError] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const [avatar, setAvatar] = useState(
-    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=flex-089",
   );
 
   // Initialize room connection on mount

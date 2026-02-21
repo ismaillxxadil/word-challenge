@@ -7,10 +7,13 @@ interface OpponentPlayerProps {
   avatar?: string;
   cards?: { letterA: string; letterB: string }[];
   onVarClick?: () => void;
+  varDisabledReason?: string | null;
   className?: string;
   variant?: "top" | "side";
   isActiveTurn?: boolean;
   isOnline?: boolean;
+  playerId: string;
+  isMe?: boolean;
 }
 
 export const OpponentPlayer = ({
@@ -18,10 +21,13 @@ export const OpponentPlayer = ({
   avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=Opponent",
   cards = [],
   onVarClick,
+  varDisabledReason,
   className = "",
   variant = "top",
   isActiveTurn = false,
   isOnline = true,
+  playerId,
+  isMe = false,
 }: OpponentPlayerProps) => {
   const isSide = variant === "side";
   return (
@@ -55,10 +61,13 @@ export const OpponentPlayer = ({
       </div>
 
       <PlayerInfo
+        playerId={playerId}
+        isMe={isMe}
         name={name}
         avatar={avatar}
         cards={cards}
         onVarClick={onVarClick}
+        varDisabledReason={varDisabledReason}
         isActiveTurn={isActiveTurn}
         isOnline={isOnline}
         className={`origin-bottom transition-all ${

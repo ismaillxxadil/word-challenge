@@ -14,6 +14,7 @@ interface RoomStore {
     startingCards: number;
     allowVar: boolean;
     varDuration?: number;
+    varExplanationDuration?: number;
   };
   roomLinkCopied: boolean;
 
@@ -27,6 +28,7 @@ interface RoomStore {
     startingCards: number;
     allowVar: boolean;
     varDuration?: number;
+    varExplanationDuration?: number;
   }) => void;
   setRoomLinkCopied: (copied: boolean) => void;
   initializeSocket: () => Socket;
@@ -47,6 +49,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     startingCards: 7,
     allowVar: true,
     varDuration: 15,
+    varExplanationDuration: 15,
   },
 
   setRoom: (room) => set({ room }),

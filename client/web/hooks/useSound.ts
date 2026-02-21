@@ -12,7 +12,8 @@ type SoundType =
     | "start" 
     | "turn"
     | "invalid"
-    | "var";
+    | "var"
+    | "timmer";
 
 // Map sound types to file paths
 // Note: We'll use the files we found. If not found, it just won't play (or we can handle error)
@@ -26,7 +27,8 @@ const SOUND_PATHS: Record<SoundType, string> = {
     start: "/sounds/game_start.mp3", // create placeholder
     turn: "/sounds/your_turn.mp3", // create placeholder
     invalid: "/sounds/invalid_move.wav",
-    var: "/sounds/VAR.mp3" // Updated to match existing file
+    var: "/sounds/VAR.mp3", // Updated to match existing file
+    timmer: "/sounds/timmer.mp3"
 };
 
 export const useSound = () => {
@@ -40,7 +42,8 @@ export const useSound = () => {
         start: null,
         turn: null,
         invalid: null,
-        var: null
+        var: null,
+        timmer: null
     });
 
     useEffect(() => {
@@ -71,5 +74,12 @@ export const useSound = () => {
         }
     };
 
-    return { play };
+    const stop = (type: SoundType) => {
+        const sound = sounds.current[type];
+        if (sound) {
+            sound.stop();
+        }
+    };
+
+    return { play, stop };
 };

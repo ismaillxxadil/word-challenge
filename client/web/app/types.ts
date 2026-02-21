@@ -5,7 +5,7 @@ export type Player = {
   joinedAt: number;
   socketId: string | null;
   // In-game: cards assigned by the server (each card has 2 letters)
-  cards?: { id: string; letterA: string; letterB: string }[];
+  cards?: { id: string; letterA: string; letterB: string; isSpecial?: boolean }[];
   // Avatar URL chosen by the player (DiceBear or custom)
   avatar?: string | null;
   // VAR status
@@ -55,13 +55,15 @@ export interface VarSession {
   neededToWin: number;
   expiresAt: number;
   durationSeconds: number;
+  status?: "awaiting_explanation" | "voting";
+  explanation?: string | null;
   resolved: boolean;
   snapshot: {
     at: number;
     centerWordBefore: string;
     centerWordAfter: string;
     move: {
-      card: { id: string; letterA: string; letterB: string };
+      card: { id: string; letterA: string; letterB: string; isSpecial?: boolean };
       pick: "A" | "B";
       targetIndex: number;
     };
@@ -69,7 +71,7 @@ export interface VarSession {
 }
 
 export type RoomState = {
-  phase: string; // 'lobby', 'in-game', 'var', 'game-over'
+  phase: string; // 'lobby', 'in-game', 'var', 'pending-win', 'game-over'
   turnIndex: number;
   // When the game started
   startedAt: number | null;
@@ -86,8 +88,11 @@ export type RoomState = {
     allowVar: boolean;
     timePerTurn: number;
     varDuration?: number;
+    varExplanationDuration?: number;
   };
   winner?: string | null;
+  pendingWinner?: string | null;
+  winTimeoutTimer?: NodeJS.Timeout | null;
 };
 
 export type Room = {

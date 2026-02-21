@@ -66,11 +66,20 @@ function makeCardId() {
 function generatePlayerCards(count) {
   const cards = [];
   for (let i = 0; i < count; i++) {
-    const letterA = getRandomElement(AR_LETTERS);
-    let letterB = getRandomElement(AR_LETTERS);
-    while (letterB === letterA) letterB = getRandomElement(AR_LETTERS);
+    // 10% chance of being a wildcard special card
+    const isSpecial = Math.random() < 0.1;
+    let letterA, letterB;
 
-    cards.push({ id: makeCardId(), letterA, letterB });
+    if (isSpecial) {
+      letterA = "★";
+      letterB = "★";
+    } else {
+      letterA = getRandomElement(AR_LETTERS);
+      letterB = getRandomElement(AR_LETTERS);
+      while (letterB === letterA) letterB = getRandomElement(AR_LETTERS);
+    }
+
+    cards.push({ id: makeCardId(), letterA, letterB, isSpecial });
   }
   return cards;
 }
@@ -98,6 +107,12 @@ function uid() {
 }
 function getVarDurationSeconds(room) {
   const v = Number(room?.state?.settings?.varDuration);
+  if (!Number.isFinite(v) || v <= 0) return 15; // default 15s
+  return v;
+}
+
+function getVarExplanationDurationSeconds(room) {
+  const v = Number(room?.state?.settings?.varExplanationDuration);
   if (!Number.isFinite(v) || v <= 0) return 15; // default 15s
   return v;
 }
@@ -194,8 +209,31 @@ function resolveVar(io, room, roomCode, result, reason) {
     },
   });
 
-  // resume game
-  room.state.phase = "in-game";
+  // Check if there was a pending winner
+  if (room.state.pendingWinner) {
+    const winnerPlayer = room.players.find(p => p.id === room.state.pendingWinner);
+    
+    if (result === "REJECT") {
+      // The pending winner's final word was rejected, they got cards back, so no win
+      room.state.pendingWinner = null;
+      room.state.phase = "in-game";
+    } else if (result === "ACCEPT" && winnerPlayer && winnerPlayer.cards.length === 0) {
+      // The final word was accepted, so the pending winner actually wins!
+      room.state.phase = "game-over";
+      room.state.winner = room.state.pendingWinner;
+      room.state.pendingWinner = null;
+      
+      // Emit the game ending event since it's final now
+      io.to(roomCode).emit("game:ended", { winnerId: room.state.winner });
+    } else {
+      // Fallback
+      room.state.phase = "in-game";
+    }
+  } else {
+    // Normal resume
+    room.state.phase = "in-game";
+  }
+
   room.state.varSession = null;
 
   io.to(roomCode).emit("var:resolved", {
@@ -214,6 +252,43 @@ function resolveVar(io, room, roomCode, result, reason) {
     snapshot: s.snapshot,
   });
 
+  io.to(roomCode).emit("room:update", { room });
+}
+
+function startVarVotingPhase(io, room, roomCode) {
+  const s = room?.state?.varSession;
+  if (!s || s.resolved) return;
+
+  // Change state
+  s.status = "voting";
+  const durationSeconds = getVarDurationSeconds(room);
+  const durationMs = durationSeconds * 1000;
+  s.expiresAt = Date.now() + durationMs;
+  s.durationSeconds = durationSeconds;
+
+  // Clear the existing explanation timer if it's there
+  if (s.timer) clearTimeout(s.timer);
+
+  // Restart the timer for the voting Phase
+  const timer = setTimeout(() => {
+    const r = getRoom(roomCode);
+    if (!r?.state?.varSession) return;
+    const sState = r.state.varSession;
+    if (sState.id !== s.id || sState.resolved) return;
+
+    const { reject } = tallyVotes(sState.votes);
+    const result = reject >= sState.neededToWin ? "REJECT" : "ACCEPT";
+    resolveVar(io, r, roomCode, result, "timeout");
+  }, durationMs);
+
+  Object.defineProperty(s, "timer", {
+    value: timer,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+
+  // Emit phase transition to clients
   io.to(roomCode).emit("room:update", { room });
 }
 
@@ -255,6 +330,13 @@ export function setupSocket(httpServer) {
 
       // Broadcast settings update to all players in the room
       io.to(roomCode).emit("room:settings-update", { settings });
+    });
+
+    socket.on("room:send-emoji", ({ roomCode, playerId, emoji }) => {
+      const room = getRoom(roomCode);
+      if (!room) return;
+      // Broadcast the emoji back to everyone in this room
+      io.to(roomCode).emit("room:receive-emoji", { playerId, emoji });
     });
 
     socket.on("room:remove-player", ({ roomCode, playerId }) => {
@@ -447,6 +529,7 @@ export function setupSocket(httpServer) {
           pick,
           targetIndex,
           currentWord,
+          specialLetter,
         } = payload || {};
         const room = getRoom(roomCode);
         if (!room) return ack?.({ ok: false, error: "Room not found" });
@@ -497,7 +580,12 @@ export function setupSocket(httpServer) {
         }
 
         const card = player.cards[cardIndex];
-        const chosenLetter = pick === "B" ? card.letterB : card.letterA;
+        let chosenLetter = pick === "B" ? card.letterB : card.letterA;
+
+        // Apply special card letter if provided and valid
+        if (card.isSpecial && specialLetter && typeof specialLetter === "string" && AR_LETTERS.includes(specialLetter)) {
+          chosenLetter = specialLetter;
+        }
 
         // Check if the played letter is the same as the one being replaced
         if (centerWord[targetIndex] === chosenLetter) {
@@ -553,14 +641,6 @@ export function setupSocket(httpServer) {
         // - update center word
         room.state.centerWord = newWord;
 
-        if (player.cards.length === 0) {
-          room.state.phase = "game-over";
-          room.state.winner = playerId;
-          io.to(roomCode).emit("room:update", { room });
-          io.to(roomCode).emit("game:ended", { winnerId: playerId });
-          return ack?.({ ok: true, valid: true, newWord, win: true });
-        }
-
         room.state.playedWords.push({
           ok: true,
           playerId,
@@ -569,6 +649,29 @@ export function setupSocket(httpServer) {
           centerWordAfter: newWord,
           move: { card, pick: pick === "B" ? "B" : "A", targetIndex },
         });
+
+        if (player.cards.length === 0) {
+          room.state.phase = "pending-win";
+          room.state.pendingWinner = playerId;
+          
+          io.to(roomCode).emit("room:update", { room });
+          
+          // Set a timeout to finalize the win if no VAR is called
+          room.state.winTimeoutTimer = setTimeout(() => {
+            if (room.state.phase === "pending-win") {
+              room.state.phase = "game-over";
+              room.state.winner = playerId;
+              room.state.pendingWinner = null;
+              room.state.winTimeoutTimer = null;
+              io.to(roomCode).emit("room:update", { room });
+              io.to(roomCode).emit("game:ended", { winnerId: playerId });
+            }
+          }, 3000);
+
+          return ack?.({ ok: true, valid: true, newWord });
+        }
+
+        // (playedWords push moved above to ensure the word is registered before pending-win)
 
         // next turn
         const now = Date.now();
@@ -616,12 +719,12 @@ export function setupSocket(httpServer) {
           `[DEBUG] Received Room Code: '${roomCode}', Found Room Code: '${room.code}'`,
         );
         console.log(
-          `[DEBUG] Room Phase: '${room.state.phase}' (Expected: 'in-game')`,
+          `[DEBUG] Room Phase: '${room.state.phase}' (Expected: 'in-game' or 'pending-win')`,
         );
 
-        if (room.state.phase !== "in-game") {
+        if (room.state.phase !== "in-game" && room.state.phase !== "pending-win") {
           socket.emit("var:error", {
-            code: `NOT_IN_GAME (Phase: ${room.state.phase})`,
+            code: `NOT_IN_GAME_OR_PENDING (Phase: ${room.state.phase})`,
           });
           return;
         }
@@ -675,13 +778,20 @@ export function setupSocket(httpServer) {
         const eligibleVoters = buildEligibleVoters(room, accusedId);
         const needed = neededToWin(eligibleVoters.length);
 
-        const durationSeconds = getVarDurationSeconds(room);
-        const durationMs = durationSeconds * 1000;
+        // Initial explanation phase
+        const explanationDurationSeconds = getVarExplanationDurationSeconds(room);
+        const explanationDurationMs = explanationDurationSeconds * 1000;
         const now = Date.now();
-        const expiresAt = now + durationMs;
+        const explanationExpiresAt = now + explanationDurationMs;
 
         // 8) create VAR session
         const varId = uid();
+        
+        // If a win is pending, pause/clear the timeout so VAR can proceed safely
+        if (room.state.winTimeoutTimer) {
+          clearTimeout(room.state.winTimeoutTimer);
+          room.state.winTimeoutTimer = null;
+        }
 
         room.state.varSession = {
           id: varId,
@@ -691,9 +801,10 @@ export function setupSocket(httpServer) {
           votes: {},
           startedAt: now,
           neededToWin: needed,
-          expiresAt,
-          durationSeconds,
-          // timer: null, // explicit undefined to avoid serialization issues? No, just exclude it.
+          expiresAt: explanationExpiresAt,
+          durationSeconds: explanationDurationSeconds,
+          status: "awaiting_explanation",
+          explanation: null,
           resolved: false,
 
           snapshot: {
@@ -707,27 +818,20 @@ export function setupSocket(httpServer) {
         const timer = setTimeout(() => {
           const r = getRoom(roomCode);
           if (!r?.state?.varSession) return;
-
           const s = r.state.varSession;
-
-          // تأكد أنها نفس جلسة الـ VAR (عشان ما نحسم جلسة قديمة)
           if (s.id !== varId) return;
           if (s.resolved) return;
-
-          const { reject } = tallyVotes(s.votes);
-
-          // Option 1:
-          // لو reject ما وصل الحد => ACCEPT
-          const result = reject >= s.neededToWin ? "REJECT" : "ACCEPT";
-
-          resolveVar(io, r, roomCode, result, "timeout");
-        }, durationMs);
+          if (s.status !== "awaiting_explanation") return;
+          
+          // Time's up, automatically proceed to voting
+          startVarVotingPhase(io, r, roomCode);
+        }, explanationDurationMs);
 
         // Make timer non-enumerable so it doesn't get serialized in socket events
         Object.defineProperty(room.state.varSession, "timer", {
           value: timer,
           writable: true,
-          enumerable: false, // This is the key fix
+          enumerable: false, 
           configurable: true,
         });
 
@@ -742,13 +846,34 @@ export function setupSocket(httpServer) {
           accusedId,
           eligibleVotersCount: eligibleVoters.length,
           neededToWin: room.state.varSession.neededToWin,
-          durationSeconds,
-          expiresAt,
+          durationSeconds: explanationDurationSeconds,
+          expiresAt: explanationExpiresAt,
           snapshot: room.state.varSession.snapshot,
         });
       } catch (error) {
         console.error("VAR START CRASH:", error);
       }
+    });
+
+    // Handle incoming explanation submission
+    socket.on("var:submit-explanation", ({ roomCode, explanation }) => {
+      const room = getRoom(roomCode);
+      if (!room?.state?.varSession) return;
+      const s = room.state.varSession;
+      
+      if (s.resolved) return socket.emit("var:error", { code: "VAR_ALREADY_RESOLVED" });
+      if (s.status !== "awaiting_explanation") return socket.emit("var:error", { code: "NOT_IN_EXPLANATION_PHASE" });
+      
+      const voter = room.players.find((p) => p.socketId === socket.id);
+      if (!voter || voter.id !== s.accusedId) {
+        return socket.emit("var:error", { code: "ONLY_ACCUSED_CAN_EXPLAIN" });
+      }
+
+      // Record explanation
+      s.explanation = explanation;
+
+      // Immediately jump to voting
+      startVarVotingPhase(io, room, roomCode);
     });
 
     socket.on("var:vote", ({ roomCode, choice }) => {

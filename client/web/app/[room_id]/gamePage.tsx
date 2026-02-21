@@ -12,6 +12,7 @@ import { FlyingCardLayer, FlyingCardState } from "./game/FlyingCardLayer";
 import { GameOverModal } from "./game/GameOverModal";
 import { VarVotingLayer } from "./game/VarVotingLayer";
 import { toast } from "sonner";
+import { ArabicLetterPickerModal } from "./game/ArabicLetterPickerModal";
 
 interface GamePageProps {
   room: Room;
@@ -28,11 +29,12 @@ function getAvatarUrl(player: RoomPlayer) {
 // Main in-game layout driven by real room data
 export default function GamePage({ room, handleLeave }: GamePageProps) {
   const { settings, socket } = useRoomStore();
-  const { play } = useSound();
+  const { play, stop } = useSound();
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(
     settings.timePerTurn ?? 30,
   );
+  const isPlayingTimerRef = useRef(false);
 
   // --- Interaction State ---
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(
@@ -45,6 +47,9 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
 
   // what cards are currently flying + where they are going
   const [flyingCards, setFlyingCards] = useState<FlyingCardState[]>([]);
+
+  // wildcard state
+  const [wildcardPendingPlay, setWildcardPendingPlay] = useState<{ cardIdx: number; targetIndex: number; _face: "A" | "B"; } | null>(null);
 
   // Read current player's id from localStorage
   useEffect(() => {
@@ -72,7 +77,17 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         ? players.findIndex((p) => p.id === currentPlayerId)
         : -1;
     const mePlayer = idx >= 0 ? players[idx] : undefined;
-    const othersPlayers = players.filter((p) => p.id !== currentPlayerId);
+    
+    // Sort others based on their position in the turn order relative to me
+    const othersPlayers: RoomPlayer[] = [];
+    if (idx >= 0) {
+      for (let i = 1; i < players.length; i++) {
+        othersPlayers.push(players[(idx + i) % players.length]);
+      }
+    } else {
+      othersPlayers.push(...players.filter((p) => p.id !== currentPlayerId));
+    }
+    
     return {
       me: mePlayer,
       others: othersPlayers,
@@ -129,9 +144,20 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   }, [pendingCenterWordRef.current, state.centerWord]);
 
   const myCards = me?.cards ?? [];
-  const topOpponent = others[0];
-  const leftOpponent = others[1];
-  const rightOpponent = others[2];
+  let rightOpponent: RoomPlayer | undefined = undefined;
+  let topOpponent: RoomPlayer | undefined = undefined;
+  let leftOpponent: RoomPlayer | undefined = undefined;
+
+  if (others.length === 1) {
+    topOpponent = others[0];
+  } else if (others.length === 2) {
+    leftOpponent = others[0];
+    rightOpponent = others[1];
+  } else if (others.length >= 3) {
+    leftOpponent = others[0];
+    topOpponent = others[1];
+    rightOpponent = others[2];
+  }
 
   const isMyTurn =
     state.currentPlayerIndex !== null &&
@@ -147,20 +173,27 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     return null;
   }, [state.playedWords]);
 
-  const varBlockReason = useMemo(() => {
-    if (state.phase !== "in-game") return "VAR is only available during the game.";
+  const globalVarDisabled = useMemo(() => {
     if (state.settings?.allowVar === false) return "VAR is disabled in room settings.";
     if (players.length < 3) return "VAR needs at least 3 players.";
+    return null;
+  }, [state.settings?.allowVar, players.length]);
+
+  const varBlockReason = useMemo(() => {
+    if (state.phase !== "in-game" && state.phase !== "pending-win") return "VAR is only available during the game.";
+    if (globalVarDisabled) return globalVarDisabled;
     if (!currentPlayerId) return "Missing player id. Rejoin the room.";
+    if (me?.useVar) return "VAR_ALREADY_USED";
+
     if (!lastChallengablePlay) return "No valid move to challenge yet.";
     if (lastChallengablePlay.playerId === currentPlayerId)
       return "You cannot challenge your own move.";
     return null;
   }, [
     state.phase,
-    state.settings?.allowVar,
-    players.length,
+    globalVarDisabled,
     currentPlayerId,
+    me?.useVar,
     lastChallengablePlay,
   ]);
 
@@ -191,11 +224,8 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   useEffect(() => {
     if (state.phase === "game-over" && !playedGameOverSoundRef.current) {
       playedGameOverSoundRef.current = true;
-      if (winnerId === me?.id) {
-        play("win");
-      } else {
-        play("lose");
-      }
+      // Play the win sound for everyone as requested by user
+      play("win");
     }
   }, [state.phase, winnerId, me?.id, play]);
 
@@ -319,7 +349,13 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       setSelectedCardIndex(null);
       setSelectedFace(null);
     });
-    const card = myCards[cardIdx]; // contains id, letterA, letterB
+    const card = myCards[cardIdx]; // contains id, letterA, letterB, isSpecial
+
+    // 2.5 Intercept Wildcard
+    if (card.isSpecial) {
+      setWildcardPendingPlay({ cardIdx, targetIndex, _face: face });
+      return; 
+    }
 
     // 3. Measure DOM positions
     const startEl = document.getElementById(`player-card-${cardIdx}`);
@@ -401,6 +437,112 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                return {
                  ...c,
                  status: "returning",
+                 onComplete: () => {
+                   setFlyingCards((p) =>
+                     p.filter((fc) => fc.cardId !== card.id),
+                   );
+                   setHiddenCardId(null); // Reveal original
+                 },
+               };
+             }),
+           );
+        }
+      },
+    );
+  };
+
+  const handleWildcardSelect = (letter: string) => {
+    if (!wildcardPendingPlay || !socket || !isMyTurn) return;
+    
+    const { cardIdx, targetIndex, _face } = wildcardPendingPlay;
+    const card = myCards[cardIdx];
+    const currentWord = state.centerWord;
+    
+    setWildcardPendingPlay(null);
+    if (!card) return;
+
+    // 3. Measure DOM positions
+    const startEl = document.getElementById(`player-card-${cardIdx}`);
+    const targetEl = document.getElementById(`center-card-${targetIndex}`);
+
+    if (startEl && targetEl) {
+      const startRect = startEl.getBoundingClientRect();
+      const targetRect = targetEl.getBoundingClientRect();
+
+      // 4. Start Flight
+      play("play"); // Play sound
+      const flyId = `fly-${card.id}-${Date.now()}`;
+      
+      flushSync(() => {
+        setHiddenCardId(card.id);
+        setFlyingCards((prev) => [
+          ...prev,
+          {
+            id: flyId,
+            cardId: card.id,
+            letterA: letter, // Morph to the chosen letter visually
+            letterB: letter,
+            pick: _face,
+            isCenter: true,
+            startRect: {
+              top: startRect.top,
+              left: startRect.left,
+              width: startRect.width,
+              height: startRect.height,
+            },
+            targetRect: {
+              top: targetRect.top,
+              left: targetRect.left,
+              width: targetRect.width,
+              height: targetRect.height,
+            },
+            status: "flying",
+            onComplete: () => {
+              setFlyingCards((prev) =>
+                prev.map((c) =>
+                  c.id === flyId
+                    ? { ...c, status: "waiting" }
+                    : c,
+                ),
+              );
+            },
+          },
+        ]);
+      });
+    }
+
+    // 5. Send move to server
+    socket.emit(
+      "room:play-card",
+      {
+        roomCode: room.code,
+        playerId: currentPlayerId,
+        cardIndex: cardIdx,
+        pick: _face,
+        targetIndex: targetIndex,
+        currentWord: currentWord,
+        specialLetter: letter,
+      },
+      (response: { ok: boolean; error?: string; valid?: boolean; win?: boolean }) => {
+        if (!response.ok) {
+          console.error("Play card failed:", response.error);
+          toast.error(response.error || "فشل لعب البطاقة");
+
+          flushSync(() => {
+            setHiddenCardId(null);
+            setFlyingCards((prev) => prev.filter((c) => c.cardId !== card.id));
+          });
+        } else if (response.valid === false) {
+           play("invalid");
+           setFlyingCards((prev) =>
+             prev.map((c) => {
+               if (c.cardId !== card.id) return c;
+               return {
+                 ...c,
+                 status: "returning",
+                 // Ensure it goes back to a star visually
+                 letterA: '★',
+                 letterB: '★',
                  onComplete: () => {
                    setFlyingCards((p) =>
                      p.filter((fc) => fc.cardId !== card.id),
@@ -724,6 +866,33 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     isMyTurn,
   ]);
 
+  // Play timer sound when time is running out (under 5s)
+  useEffect(() => {
+    // If not in game, or time is 0, or time is above 5, stop the sound
+    if (state.phase !== "in-game" || remainingSeconds === 0 || remainingSeconds > 5) {
+      if (isPlayingTimerRef.current) {
+        stop("timmer");
+        isPlayingTimerRef.current = false;
+      }
+    } 
+    // Start playing when remaining target hits 5 or under
+    else if (remainingSeconds <= 5 && remainingSeconds > 0) {
+      if (!isPlayingTimerRef.current) {
+        play("timmer", { volume: 0.7 });
+        isPlayingTimerRef.current = true;
+      }
+    }
+  }, [remainingSeconds, state.phase, play, stop]);
+
+  // Handle timeout actions (close modal)
+  useEffect(() => {
+    if (remainingSeconds === 0 && isMyTurn) {
+      if (wildcardPendingPlay) {
+        setWildcardPendingPlay(null);
+      }
+    }
+  }, [remainingSeconds, isMyTurn, wildcardPendingPlay]);
+
   const mm = String(Math.floor(remainingSeconds / 60)).padStart(2, "0");
   const ss = String(remainingSeconds % 60).padStart(2, "0");
 
@@ -776,9 +945,25 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         <div className="h-full w-full grid overflow-visible grid-cols-[minmax(0,1.2fr)_minmax(0,2.2fr)_minmax(0,0.9fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] gap-[clamp(6px,2vw,18px)] px-2 pb-2 pt-4">
           {/* --- Top Row: Opponent (first other player) --- */}
           <div className="col-span-3 relative z-10 flex items-center justify-center p-2 pb-[clamp(10px,2.5vw,18px)] rounded-2xl">
-            <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-[clamp(10px,1.5vw,12px)] font-bold text-red-600 shadow-sm">
-              <span aria-hidden>⏳</span>
-              {mm}:{ss}
+            <div 
+              className={`absolute left-3 top-3 flex items-center gap-2 rounded-full px-3 py-1 text-[clamp(10px,1.5vw,12px)] font-bold shadow-sm transition-all duration-300 ${
+                remainingSeconds <= 5 && remainingSeconds > 0 && state.phase === "in-game"
+                  ? "bg-yellow-400 text-yellow-900 border border-yellow-500 scale-110 shadow-lg shadow-yellow-500/50"
+                  : "bg-red-50 text-red-600"
+              }`}
+            >
+              <motion.span
+                animate={
+                  remainingSeconds <= 5 && remainingSeconds > 0 && state.phase === "in-game"
+                    ? { scale: [1, 1.2, 1] }
+                    : {}
+                }
+                transition={{ duration: 0.5, repeat: Infinity }}
+                aria-hidden
+              >
+                ⏳
+              </motion.span>
+              <span>{mm}:{ss}</span>
             </div>
             {topOpponent && (
               <div id={`player-avatar-${topOpponent.id}`}>
@@ -787,6 +972,9 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                   avatar={getAvatarUrl(topOpponent)}
                   cards={topOpponent.cards ?? []}
                   isActiveTurn={topOpponent.id === activePlayerId}
+                  playerId={topOpponent.id}
+                  isMe={false}
+                  varDisabledReason={globalVarDisabled || (topOpponent.useVar ? "VAR_ALREADY_USED" : null)}
                   className="pb-3"
                 />
               </div>
@@ -804,6 +992,9 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                     avatar={getAvatarUrl(leftOpponent)}
                     cards={leftOpponent.cards ?? []}
                     isActiveTurn={leftOpponent.id === activePlayerId}
+                    playerId={leftOpponent.id}
+                    isMe={false}
+                    varDisabledReason={globalVarDisabled || (leftOpponent.useVar ? "VAR_ALREADY_USED" : null)}
                   />
                 </div>
               )}
@@ -836,6 +1027,9 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                     avatar={getAvatarUrl(rightOpponent)}
                     cards={rightOpponent.cards ?? []}
                     isActiveTurn={rightOpponent.id === activePlayerId}
+                    playerId={rightOpponent.id}
+                    isMe={false}
+                    varDisabledReason={globalVarDisabled || (rightOpponent.useVar ? "VAR_ALREADY_USED" : null)}
                   />
                 </div>
               )}
@@ -851,12 +1045,15 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                 cards={myCards}
                 isMyTurn={isMyTurn}
                 isActiveTurn={me.id === activePlayerId}
+                playerId={me.id}
+                isMe={true}
                 selectedCardIndex={selectedCardIndex}
                 selectedFace={selectedFace}
                 hiddenCardId={hiddenCardId}
                 onCardClick={handleCardClick}
                 onFaceSelect={handleFaceSelect}
                 onVarClick={handleVarStart}
+                varDisabledReason={varBlockReason}
               />
             )}
           </div>
@@ -945,6 +1142,12 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
           onRestart={handleRestart}
           onReturnToLobby={handleReturnToLobby}
           onLeave={handleLeave}
+        />
+
+        <ArabicLetterPickerModal 
+          isOpen={!!wildcardPendingPlay}
+          onSelect={handleWildcardSelect}
+          onClose={() => setWildcardPendingPlay(null)}
         />
       </div>
     </LayoutGroup>
