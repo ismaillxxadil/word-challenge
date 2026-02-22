@@ -44,6 +44,8 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
 
   // animation State
   const [hiddenCardId, setHiddenCardId] = useState<string | null>(null);
+  const [hiddenDrawnCardIds, setHiddenDrawnCardIds] = useState<string[]>([]);
+
 
   // what cards are currently flying + where they are going
   const [flyingCards, setFlyingCards] = useState<FlyingCardState[]>([]);
@@ -610,25 +612,35 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   }, [myCards, hiddenCardId, flyingCards, play]);
 
   // Deck to Hand Animation
-  const previousCardsRef = useRef<RoomPlayer["cards"]>([]);
+  const [prevMyCards, setPrevMyCards] = useState<RoomPlayer["cards"]>(me?.cards);
   
   // Track cards that should be drawn but might need to wait for a return animation
   const [pendingDrawCards, setPendingDrawCards] = useState<NonNullable<RoomPlayer["cards"]>>([]);
 
-  useEffect(() => {
-    const prevCards = previousCardsRef.current || [];
-    const newCards = myCards;
-
+  // Use derived state during render to avoid 1-frame flash of drawn cards
+  if (me?.cards !== prevMyCards) {
+    const currentCards = me?.cards || [];
+    const previousCards = prevMyCards || [];
+    
     // Detect added cards
-    if (newCards.length > prevCards.length) {
-      const addedCards = newCards.filter(
-        (nc) => !prevCards.some((pc) => pc.id === nc.id),
+    if (currentCards.length > previousCards.length) {
+      const addedCards = currentCards.filter(
+        (nc) => !previousCards.some((pc) => pc.id === nc.id),
       );
-      setPendingDrawCards(prev => [...prev, ...addedCards]);
+      
+      if (addedCards.length > 0) {
+        setHiddenDrawnCardIds((prev) => {
+          const newIds = addedCards.map((c) => c.id).filter((id) => !prev.includes(id));
+          return newIds.length > 0 ? [...prev, ...newIds] : prev;
+        });
+        setPendingDrawCards((prev) => {
+          const newCards = addedCards.filter((ac) => !prev.some((pc) => pc.id === ac.id));
+          return newCards.length > 0 ? [...prev, ...newCards] : prev;
+        });
+      }
     }
-
-    previousCardsRef.current = newCards;
-  }, [myCards]);
+    setPrevMyCards(me?.cards);
+  }
 
   // Process pending draw animations when there's no active returning flight
   useEffect(() => {
@@ -659,6 +671,22 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       };
 
       const flyId = `fly-draw-${card.id}-${Date.now()}`;
+      
+      // Calculate accurate target position in hand
+      const cardIndex = myCards.findIndex((c) => c.id === card.id);
+      const targetEl = document.getElementById(`player-card-${cardIndex}`);
+      
+      let targetRect = {
+        top: window.innerHeight - 120,
+        left: window.innerWidth / 2 - 150 + (cardIndex >= 0 ? cardIndex * 60 : 0), 
+        width: 80,
+        height: 110,
+      };
+      
+      if (targetEl) {
+        targetRect = targetEl.getBoundingClientRect();
+      }
+
       setFlyingCards((prev) => [
         ...prev,
         {
@@ -675,15 +703,19 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
             height: startRect.height,
           },
           targetRect: {
-            top: window.innerHeight - 120, // Near bottom
-            left: window.innerWidth / 2 - 150 + (myCards.length * 60) + (Math.random() * 40 - 20), // Rough hand position
-            width: 80,
-            height: 110,
+            top: targetRect.top,
+            left: targetRect.left,
+            width: targetRect.width,
+            height: targetRect.height,
           },
           status: "flying",
           onComplete: () => {
             setFlyingCards((p) => p.filter((c) => c.id !== flyId));
-            setHiddenCardId(null);
+            setHiddenDrawnCardIds((prev) => prev.filter((id) => id !== card.id));
+            // Do not clear hiddenCardId on draw to avoid disrupting other plays
+            if (hiddenCardId === card.id) {
+               setHiddenCardId(null);
+            }
           },
         },
       ]);
@@ -1049,7 +1081,8 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                 isMe={true}
                 selectedCardIndex={selectedCardIndex}
                 selectedFace={selectedFace}
-                hiddenCardId={hiddenCardId}
+                hiddenCardId={hiddenCardId} // keep existing for played cards
+                hiddenDrawnCardIds={hiddenDrawnCardIds} // Array of IDs for currently animating drawn cards
                 onCardClick={handleCardClick}
                 onFaceSelect={handleFaceSelect}
                 onVarClick={handleVarStart}

@@ -69,12 +69,9 @@ export const FlyingCardLayer = ({ flyingCards }: FlyingCardLayerProps) => {
             transition={
               flyingCard.isDraw
                 ? {
-                    // Smooth arc for drawing cards
-                    top: { type: "tween", ease: "easeIn", duration: 0.5 },
-                    left: { type: "tween", ease: "easeOut", duration: 0.5 },
-                    width: { duration: 0.5 },
-                    height: { duration: 0.5 },
-                    rotate: { duration: 0.5 },
+                    type: "tween",
+                    ease: "easeInOut",
+                    duration: 0.5,
                   }
                 : {
                     type: "spring",

@@ -19,6 +19,7 @@ interface playerProps {
   selectedCardIndex?: number | null;
   selectedFace?: "A" | "B" | null;
   hiddenCardId?: string | null; // Changed from index to ID
+  hiddenDrawnCardIds?: string[]; // IDs of cards currently being drawn
   onCardClick?: (index: number, face?: "A" | "B") => void;
   onFaceSelect?: (index: number, face: "A" | "B") => void;
   playerId: string;
@@ -38,6 +39,7 @@ export const Player = ({
   selectedCardIndex = null,
   selectedFace = null,
   hiddenCardId = null,
+  hiddenDrawnCardIds = [],
   onCardClick,
   onFaceSelect,
   playerId,
@@ -71,7 +73,7 @@ export const Player = ({
         <div className="flex w-full flex-row-reverse items-center justify-center -space-x-2 sm:-space-x-4 md:-space-x-6 overflow-x-auto px-2 pb-4 pt-11">
             {cards.map((card, index) => {
               const isSelected = selectedCardIndex === index;
-              const isHidden = hiddenCardId === card.id;
+              const isHidden = hiddenCardId === card.id || hiddenDrawnCardIds.includes(card.id);
 
               return (
                 <div

@@ -234,6 +234,13 @@ function resolveVar(io, room, roomCode, result, reason) {
     room.state.phase = "in-game";
   }
 
+  // Calculate time spent in VAR and extend the current game turn 
+  // so the player does not instantly hit the timeout check 
+  const varDurationMs = Date.now() - s.startedAt;
+  if (room.state.turnStartedAt) {
+    room.state.turnStartedAt += varDurationMs;
+  }
+
   room.state.varSession = null;
 
   io.to(roomCode).emit("var:resolved", {
