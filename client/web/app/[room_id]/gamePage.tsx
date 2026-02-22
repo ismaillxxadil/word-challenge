@@ -249,6 +249,17 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     }
   };
 
+  const handleDrawAndPass = () => {
+    if (!isMyTurn || !socket || !room.code) return;
+    play("click");
+    
+    socket.emit("room:draw-pass", { roomCode: room.code, playerId: currentPlayerId }, (response: { ok: boolean; error?: string }) => {
+      if (!response?.ok) {
+        toast.error(response?.error || "فشل سحب البطاقة");
+      }
+    });
+  };
+
   const handleVarStart = () => {
     console.log("VAR Button Clicked");
     // Temporary alert to confirm interaction
@@ -1045,6 +1056,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
               isMyTurn={isMyTurn}
               canTarget={isMyTurn && selectedCardIndex !== null}
               onTargetClick={handleTargetClick}
+              onDrawCard={handleDrawAndPass}
             />
           </div>
 

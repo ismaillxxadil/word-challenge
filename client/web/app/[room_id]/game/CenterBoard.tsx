@@ -89,16 +89,14 @@ export const CenterBoard = ({
         <button
           id="deck-stack" // Added ID for animation targeting
           onClick={onDrawCard}
-          disabled // Player only draws automatically on timeout or manually if we enable it (but rules say timeout?)
-          // Actually user request says: "when timer hit 0 ... it must draw card"
-          // AND "if not (valid word) the card must go back ... and he draw one card"
-          // It doesn't explicitly say user can draw manually. Usually in this game they don't, but let's leave it possible.
-          className="w-full h-full cursor-default"
+          disabled={!isMyTurn}
+          className={`w-full h-full relative z-30 transition-all ${isMyTurn ? "cursor-pointer hover:-translate-y-2 hover:drop-shadow-[0_10px_10px_rgba(168,85,247,0.4)] ring-2 ring-transparent hover:ring-purple-400 rounded-lg": "cursor-default opacity-80"}`}
+          title={isMyTurn ? "سحب بطاقة وتخطي الدور" : "مجموعة الأوراق"}
         >
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="absolute inset-0 transition-transform group-hover:-translate-y-1"
+              className="absolute inset-0 transition-transform"
               style={{
                 zIndex: 10 - i,
               }}
@@ -113,9 +111,6 @@ export const CenterBoard = ({
               </div>
             </motion.div>
           ))}
-          <div className="absolute -bottom-2 -right-2 z-20 w-[clamp(20px,2.5vw,28px)] h-[clamp(20px,2.5vw,28px)] bg-slate-800 text-white rounded-full flex items-center justify-center text-[clamp(10px,1.2vw,12px)] font-bold border-2 border-slate-100 shadow-md">
-            {deckCount}
-          </div>
         </button>
       </div>
     </div>

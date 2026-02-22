@@ -704,6 +704,64 @@ export function setupSocket(httpServer) {
       }
     });
 
+    socket.on("room:draw-pass", (payload, ack) => {
+      try {
+        const { roomCode, playerId } = payload || {};
+        const room = getRoom(roomCode);
+        if (!room) return ack?.({ ok: false, error: "Room not found" });
+
+        if (room.state.phase !== "in-game") {
+          return ack?.({ ok: false, error: "Game is not running" });
+        }
+
+        // Verify it's actually this player's turn
+        if (room.state.currentPlayerIndex >= room.players.length) {
+          room.state.currentPlayerIndex = 0;
+        }
+
+        const currentPlayer = room.players[room.state.currentPlayerIndex];
+        if (!currentPlayer || currentPlayer.id !== playerId) {
+          return ack?.({ ok: false, error: "Not your turn" });
+        }
+
+        const player = room.players.find((p) => p.id === playerId);
+        if (!player) return ack?.({ ok: false, error: "Player not found" });
+
+        if (!Array.isArray(player.cards)) player.cards = [];
+
+        // 1. Draw a card
+        const drawnCard = drawCardFromDeck();
+        player.cards.push(drawnCard);
+
+        // 2. Add to history so players know a skip happened
+        room.state.playedWords ||= [];
+        room.state.playedWords.push({
+          ok: false,
+          playerId,
+          at: Date.now(),
+          centerWordBefore: room.state.centerWord,
+          isPass: true,
+          action: "pass"
+        });
+
+        // 3. Pass turn
+        const now = Date.now();
+        room.state.currentPlayerIndex = nextPlayerIndex(
+          room,
+          room.state.currentPlayerIndex,
+        );
+        room.state.turnStartedAt = now;
+
+        io.to(roomCode).emit("room:update", { room });
+        
+        // Let the client know it worked (though state update drives the UI)
+        return ack?.({ ok: true });
+        
+      } catch (e) {
+        return ack?.({ ok: false, error: "Unexpected server error" });
+      }
+    });
+
     socket.on("var:start", ({ roomCode }) => {
       console.log(
         `[DEBUG] var:start event received for room: ${roomCode} from socket: ${socket.id}`,
