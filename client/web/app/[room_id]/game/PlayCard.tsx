@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { Lock } from "lucide-react";
 
 interface PlayCardProps {
   letterA?: string;
@@ -12,6 +13,7 @@ interface PlayCardProps {
   onClick?: () => void;
   selected?: boolean;
   pick?: "A" | "B" | null; // Which face is selected if any
+  isLock?: boolean;
 }
 
 export const PlayCard = ({
@@ -25,6 +27,7 @@ export const PlayCard = ({
   onClick,
   selected = false,
   pick, // "A" or "B" (visual highlight)
+  isLock = false,
 }: PlayCardProps) => {
   const isInteractive = Boolean(onClick || onFlip);
 
@@ -60,39 +63,39 @@ export const PlayCard = ({
         {/* FACE A (Front) */}
         <div
           className={`absolute inset-0 w-full h-full bg-white rounded-xl shadow-md border flex flex-col justify-between p-1.5 sm:p-2 md:p-2.5 [backface-visibility:hidden] ${
-            selected && pick === "A" ? "border-purple-500 ring-2 ring-purple-500" : "border-slate-200"
+            selected && pick === "A" ? "border-purple-500 ring-2 ring-purple-500" : (isLock ? "border-cyan-600 ring-1 ring-cyan-600" : "border-slate-200")
           }`}
         >
           {!isHidden ? (
             <>
               {/* Corners */}
-              <div className="absolute top-0.5 left-0.5 w-3 h-3 border-t-2 border-l-2 border-emerald-600 rounded-tl opacity-40"></div>
-              <div className="absolute top-0.5 right-0.5 w-3 h-3 border-t-2 border-r-2 border-emerald-600 rounded-tr opacity-40"></div>
-              <div className="absolute bottom-0.5 left-0.5 w-3 h-3 border-b-2 border-l-2 border-emerald-600 rounded-bl opacity-40"></div>
-              <div className="absolute bottom-0.5 right-0.5 w-3 h-3 border-b-2 border-r-2 border-emerald-600 rounded-br opacity-40"></div>
+              <div className={`absolute top-0.5 left-0.5 w-3 h-3 border-t-2 border-l-2 rounded-tl opacity-40 ${isLock ? "border-cyan-600" : "border-emerald-600"}`}></div>
+              <div className={`absolute top-0.5 right-0.5 w-3 h-3 border-t-2 border-r-2 rounded-tr opacity-40 ${isLock ? "border-cyan-600" : "border-emerald-600"}`}></div>
+              <div className={`absolute bottom-0.5 left-0.5 w-3 h-3 border-b-2 border-l-2 rounded-bl opacity-40 ${isLock ? "border-cyan-600" : "border-emerald-600"}`}></div>
+              <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-b-2 border-r-2 rounded-br opacity-40 ${isLock ? "border-cyan-600" : "border-emerald-600"}`}></div>
 
               {/* Letter B (Top Left) */}
               <div className="flex flex-col items-center self-end z-10">
-                <span className="text-emerald-600 font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none">
-                  {letterB}
+                <span className={`${isLock ? "text-slate-800" : "text-emerald-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
+                  {letterB === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterB}
                 </span>
               </div>
 
               {/* Letter A (Center) */}
               <div className="flex-1 flex items-center justify-center relative z-10 overflow-hidden">
-                <div className="absolute w-full h-full bg-emerald-50 rounded-full opacity-40 blur-xl scale-75"></div>
+                <div className={`absolute w-full h-full rounded-full opacity-40 blur-xl scale-75 ${isLock ? "bg-cyan-200" : "bg-emerald-50"}`}></div>
                 <span
                   className="text-[clamp(20px,3.5vw,32px)] leading-none font-serif text-slate-800 drop-shadow-sm select-none"
                   dir="rtl"
                 >
-                  {letterA}
+                  {letterA === "🔒" ? <Lock size={28} className="text-cyan-600" strokeWidth={2.5} /> : letterA}
                 </span>
               </div>
 
               {/* Letter B (Bottom Right - Rotated) */}
               <div className="flex flex-col items-center self-start transform rotate-180 z-10">
-                <span className="text-emerald-600 font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none">
-                  {letterB}
+                <span className={`${isLock ? "text-slate-800" : "text-emerald-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
+                  {letterB === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterB}
                 </span>
               </div>
               
@@ -112,35 +115,35 @@ export const PlayCard = ({
         {/* FACE B (Back) */}
         <div
           className={`absolute inset-0 w-full h-full bg-white rounded-xl shadow-md border flex flex-col justify-between p-1.5 sm:p-2 md:p-2.5 [transform:rotateY(180deg)] [backface-visibility:hidden] ${
-            selected && pick === "B" ? "border-purple-500 ring-2 ring-purple-500" : "border-slate-200"
+            selected && pick === "B" ? "border-purple-500 ring-2 ring-purple-500" : (isLock ? "border-cyan-600 ring-1 ring-cyan-600" : "border-slate-200")
           }`}
         >
           {!isHidden ? (
             <>
               {/* Corners (Amber) */}
-              <div className="absolute top-0.5 left-0.5 w-3 h-3 border-t-2 border-l-2 border-amber-600 rounded-tl opacity-40"></div>
-              <div className="absolute top-0.5 right-0.5 w-3 h-3 border-t-2 border-r-2 border-amber-600 rounded-tr opacity-40"></div>
-              <div className="absolute bottom-0.5 left-0.5 w-3 h-3 border-b-2 border-l-2 border-amber-600 rounded-bl opacity-40"></div>
-              <div className="absolute bottom-0.5 right-0.5 w-3 h-3 border-b-2 border-r-2 border-amber-600 rounded-br opacity-40"></div>
+              <div className={`absolute top-0.5 left-0.5 w-3 h-3 border-t-2 border-l-2 rounded-tl opacity-40 ${isLock ? "border-cyan-600" : "border-amber-600"}`}></div>
+              <div className={`absolute top-0.5 right-0.5 w-3 h-3 border-t-2 border-r-2 rounded-tr opacity-40 ${isLock ? "border-cyan-600" : "border-amber-600"}`}></div>
+              <div className={`absolute bottom-0.5 left-0.5 w-3 h-3 border-b-2 border-l-2 rounded-bl opacity-40 ${isLock ? "border-cyan-600" : "border-amber-600"}`}></div>
+              <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-b-2 border-r-2 rounded-br opacity-40 ${isLock ? "border-cyan-600" : "border-amber-600"}`}></div>
 
               {/* Content */}
               <div className="flex flex-col items-center self-end z-10">
-                <span className="text-amber-600 font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none">
-                  {letterA}
+                <span className={`${isLock ? "text-slate-800" : "text-amber-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
+                  {letterA === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterA}
                 </span>
               </div>
               <div className="flex-1 flex items-center justify-center relative z-10">
-                <div className="absolute w-full h-full bg-amber-50 rounded-full opacity-40 blur-xl scale-75"></div>
+                <div className={`absolute w-full h-full rounded-full opacity-40 blur-xl scale-75 ${isLock ? "bg-cyan-200" : "bg-amber-50"}`}></div>
                 <span
                   className="text-[clamp(24px,4vw,36px)] leading-none font-serif text-slate-800 drop-shadow-sm select-none"
                   dir="rtl"
                 >
-                  {letterB}
+                  {letterB === "🔒" ? <Lock size={28} className="text-cyan-600" strokeWidth={2.5} /> : letterB}
                 </span>
               </div>
               <div className="flex flex-col items-center self-start transform rotate-180 z-10">
-                <span className="text-amber-600 font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none">
-                  {letterA}
+                <span className={`${isLock ? "text-slate-800" : "text-amber-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
+                  {letterA === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterA}
                 </span>
               </div>
                {/* Pick Overlay */}

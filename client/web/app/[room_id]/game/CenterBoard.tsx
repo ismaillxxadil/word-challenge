@@ -1,6 +1,7 @@
 import React from "react";
 import { PlayCard } from "./PlayCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { Lock } from "lucide-react";
 
 interface CenterBoardProps {
   currentWordCards?: { letterA: string; letterB: string }[];
@@ -12,6 +13,8 @@ interface CenterBoardProps {
   isMyTurn?: boolean;
   canTarget?: boolean; // If true, show targeting helpers
   onTargetClick?: (index: number) => void;
+  lockedIndices?: Record<number, { lockedBy: string; turnsRemaining: number }>;
+  myPlayerId?: string;
 }
 
 export const CenterBoard = ({
@@ -23,6 +26,8 @@ export const CenterBoard = ({
   isMyTurn = false,
   canTarget = false,
   onTargetClick,
+  lockedIndices = {},
+  myPlayerId = "",
 }: CenterBoardProps) => {
   const currentWord = currentWordCards.map((card) => card.letterA).join("");
   
@@ -46,17 +51,35 @@ export const CenterBoard = ({
           <AnimatePresence mode="popLayout" initial={false}>
             {currentWordCards.length ? (
               currentWordCards.map((card, idx) => {
+                const isLocked = lockedIndices[idx] !== undefined;
+                const isLockedByMe = isLocked && lockedIndices[idx]?.lockedBy === myPlayerId;
+                
+                // You can target it only if it's NOT locked, or it IS locked but it was YOU who locked it
+                const isTargetable = canTarget && (!isLocked || isLockedByMe);
+
                 return (
                   <motion.div
                   id={`center-card-${idx}`} // ID for animation targeting
                   key={idx} 
-                  className={`relative transition-all duration-300 origin-center ${canTarget ? "cursor-pointer hover:scale-110 hover:-translate-y-2 ring-4 ring-purple-400/50 rounded-lg" : ""}`}
+                  className={`relative transition-all duration-300 origin-center ${isTargetable ? "cursor-pointer hover:scale-110 hover:-translate-y-2 ring-4 ring-purple-400/50 rounded-lg" : ""}`}
                   onClick={() =>
-                    canTarget && onTargetClick && onTargetClick(idx)
+                    isTargetable && onTargetClick && onTargetClick(idx)
                   }
                 >
+                  {/* Lock Indicator Overlay (Visual style) */}
+                  {isLocked && (
+                    <motion.div
+                       initial={{ opacity: 0, scale: 0.5 }}
+                       animate={{ opacity: 1, scale: 1 }}
+                       className="absolute -top-3 -right-3 z-30 bg-slate-800 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg border border-slate-600"
+                       title={`مغلق لـ ${lockedIndices[idx].turnsRemaining} دور`}
+                    >
+                       <Lock size={12} className="text-cyan-400" strokeWidth={3} />
+                    </motion.div>
+                  )}
+
                   {/* Target Hint Overlay */}
-                  {canTarget && (
+                  {isTargetable && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -65,12 +88,13 @@ export const CenterBoard = ({
                       استبدل
                     </motion.div>
                   )}
+
                   <PlayCard
                     letterA={card.letterA}
                     letterB={card.letterB}
-
                     isFlipped={false}
                     className="shadow-md"
+                    isLock={isLocked}
                   />
                 </motion.div>
               );

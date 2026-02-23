@@ -1066,19 +1066,24 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
             </div>
           </div>
 
-          {/* --- Middle Row: Center Board --- */}
           <div className="row-start-2 col-start-2 relative z-10 flex items-center justify-center mt-[clamp(8px,2.2vw,18px)] rounded-2xl overflow-visible">
             <div className="absolute inset-0 overflow-hidden rounded-2xl">
               {/* Subtle texture for the table */}
               <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/felt.png')]"></div>
             </div>
             <CenterBoard
+              className={`transition-all duration-300 ${
+                !!state.varSession ? "opacity-30 blur-sm pointer-events-none" : ""
+              }`}
               currentWordCards={centerWordCards}
+              deckCount={10} // Just visual
               timerSeconds={remainingSeconds}
-              isMyTurn={isMyTurn}
-              canTarget={isMyTurn && selectedCardIndex !== null}
-              onTargetClick={handleTargetClick}
               onDrawCard={handleDrawAndPass}
+              isMyTurn={isMyTurn}
+              canTarget={selectedCardIndex !== null && selectedFace !== null}
+              onTargetClick={handleTargetClick}
+              lockedIndices={state.lockedIndices}
+              myPlayerId={currentPlayerId ?? undefined}
             />
           </div>
 

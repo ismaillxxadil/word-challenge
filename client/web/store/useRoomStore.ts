@@ -13,6 +13,7 @@ interface RoomStore {
     timePerTurn: number;
     startingCards: number;
     allowVar: boolean;
+    allowLockCard: boolean;
     varDuration?: number;
     varExplanationDuration?: number;
   };
@@ -27,6 +28,7 @@ interface RoomStore {
     timePerTurn: number;
     startingCards: number;
     allowVar: boolean;
+    allowLockCard: boolean;
     varDuration?: number;
     varExplanationDuration?: number;
   }) => void;
@@ -48,6 +50,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     timePerTurn: 15,
     startingCards: 7,
     allowVar: true,
+    allowLockCard: true,
     varDuration: 15,
     varExplanationDuration: 15,
   },
@@ -107,6 +110,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         timePerTurn: number;
         startingCards: number;
         allowVar: boolean;
+        allowLockCard: boolean;
       };
     }) => {
       set({ settings: payload.settings });
@@ -150,7 +154,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       showJoinModal: false,
       isConnectingToRoom: false,
       roomLinkCopied: false,
-      settings: { timePerTurn: 15, startingCards: 7, allowVar: true },
+      settings: { timePerTurn: 15, startingCards: 7, allowVar: true, allowLockCard: true },
     });
   },
 }));

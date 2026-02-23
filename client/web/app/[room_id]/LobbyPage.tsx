@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Trash2,
   LogOut,
+  Lock,
 } from "lucide-react";
 import { useRoomStore } from "@/store/useRoomStore";
 import { Room } from "@/app/types";
@@ -170,6 +171,42 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
                 disabled={!isHost}
                 className={`w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 ${!isHost ? "opacity-50 cursor-not-allowed" : ""}`}
               />
+            </div>
+
+            {/* إعداد بطاقة القفل */}
+            <div
+              className={`flex flex-col gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-800 ${!isHost ? "opacity-50" : ""}`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock
+                    size={16}
+                    className={
+                      settings.allowLockCard ? "text-cyan-400" : "text-slate-600"
+                    }
+                  />
+                  <span className="text-xs font-medium text-slate-300">
+                    تفعيل بطاقة القفل
+                  </span>
+                </div>
+                <div
+                  onClick={() => {
+                    if (isHost) {
+                      handleSettingsChange({
+                        ...settings,
+                        allowLockCard: !settings.allowLockCard,
+                      });
+                    }
+                  }}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${
+                    settings.allowLockCard ? "bg-green-500/20" : "bg-slate-700"
+                  } ${isHost ? "cursor-pointer" : "cursor-not-allowed"}`}
+                >
+                  <div
+                    className={`absolute top-1 w-3 h-3 rounded-full transition-all duration-300 ${settings.allowLockCard ? "left-1 bg-cyan-400" : "left-6 bg-slate-400"}`}
+                  ></div>
+                </div>
+              </div>
             </div>
 
             {/* إعداد الـ VAR */}

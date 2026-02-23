@@ -5,7 +5,7 @@ export type Player = {
   joinedAt: number;
   socketId: string | null;
   // In-game: cards assigned by the server (each card has 2 letters)
-  cards?: { id: string; letterA: string; letterB: string; isSpecial?: boolean }[];
+  cards?: { id: string; letterA: string; letterB: string; isSpecial?: boolean; isLock?: boolean }[];
   // Avatar URL chosen by the player (DiceBear or custom)
   avatar?: string | null;
   // VAR status
@@ -24,6 +24,7 @@ export interface PlayedWord {
     card: { id: string; letterA: string; letterB: string };
     pick: "A" | "B";
     targetIndex: number;
+    isLockAction?: boolean;
   };
   // specific to invalid move
   attempt?: {
@@ -63,7 +64,7 @@ export interface VarSession {
     centerWordBefore: string;
     centerWordAfter: string;
     move: {
-      card: { id: string; letterA: string; letterB: string; isSpecial?: boolean };
+      card: { id: string; letterA: string; letterB: string; isSpecial?: boolean; isLock?: boolean };
       pick: "A" | "B";
       targetIndex: number;
     };
@@ -82,10 +83,12 @@ export type RoomState = {
   // 3-letter center word
   centerWord: string | null;
   playedWords: PlayedWord[];
+  lockedIndices?: Record<number, { lockedBy: string; turnsRemaining: number }>;
   varSession?: VarSession | null;
   settings: {
     startingCards: number;
     allowVar: boolean;
+    allowLockCard: boolean;
     timePerTurn: number;
     varDuration?: number;
     varExplanationDuration?: number;

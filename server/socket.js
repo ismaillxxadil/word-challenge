@@ -63,29 +63,36 @@ function makeCardId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function generatePlayerCards(count) {
+function generatePlayerCards(room, count) {
+  const allowLockCard = room?.state?.settings?.allowLockCard ?? false;
   const cards = [];
   for (let i = 0; i < count; i++) {
     // 10% chance of being a wildcard special card
     const isSpecial = Math.random() < 0.1;
+    // 5% chance of being a lock card (if not already special)
+    const isLock = allowLockCard && !isSpecial && Math.random() < 0.9;
+
     let letterA, letterB;
 
     if (isSpecial) {
       letterA = "★";
       letterB = "★";
+    } else if (isLock) {
+      letterA = "🔒";
+      letterB = "🔒";
     } else {
       letterA = getRandomElement(AR_LETTERS);
       letterB = getRandomElement(AR_LETTERS);
       while (letterB === letterA) letterB = getRandomElement(AR_LETTERS);
     }
 
-    cards.push({ id: makeCardId(), letterA, letterB, isSpecial });
+    cards.push({ id: makeCardId(), letterA, letterB, isSpecial, isLock });
   }
   return cards;
 }
 
-function drawCardFromDeck() {
-  return generatePlayerCards(1)[0];
+function drawCardFromDeck(room) {
+  return generatePlayerCards(room, 1)[0];
 }
 
 function nextPlayerIndex(room, currentIndex) {
@@ -93,6 +100,19 @@ function nextPlayerIndex(room, currentIndex) {
   if (n === 0) return 0;
   return (currentIndex + 1) % n;
 }
+
+function decrementLocks(room) {
+  if (!room.state.lockedIndices) return;
+  Object.keys(room.state.lockedIndices).forEach(idx => {
+    if (room.state.lockedIndices[idx].turnsRemaining) {
+      room.state.lockedIndices[idx].turnsRemaining -= 1;
+      if (room.state.lockedIndices[idx].turnsRemaining <= 0) {
+        delete room.state.lockedIndices[idx];
+      }
+    }
+  });
+}
+
 function getPlayerBySocket(room, socketId) {
   return room.players.find((p) => p.socketId === socketId);
 }
@@ -184,7 +204,7 @@ function resolveVar(io, room, roomCode, result, reason) {
       }
 
       // عقوبة: يسحب بطاقة إضافية
-      accused.cards.push(drawCardFromDeck());
+      accused.cards.push(drawCardFromDeck(room));
     }
   }
 
@@ -464,7 +484,7 @@ export function setupSocket(httpServer) {
       room.state.varSession = null;
       // Generate cards for each player
       room.players.forEach((player) => {
-        player.cards = generatePlayerCards(cardCount);
+        player.cards = generatePlayerCards(room, cardCount);
       });
 
       // Pick random center word
@@ -484,6 +504,7 @@ export function setupSocket(httpServer) {
       room.state.currentPlayerIndex = startingPlayerIndex;
       room.state.centerWord = centerWord;
       room.state.playedWords = [];
+      room.state.lockedIndices = {};
       if (room.state.settings?.allowVar) {
         room.players.forEach((p) => {
           p.useVar = false;
@@ -510,6 +531,7 @@ export function setupSocket(httpServer) {
       room.state.winner = null;
       room.state.centerWord = null;
       room.state.playedWords = [];
+      room.state.lockedIndices = {};
       room.state.currentPlayerIndex = null;
       room.state.turnStartedAt = null;
       room.state.startedAt = null;
@@ -586,7 +608,68 @@ export function setupSocket(httpServer) {
           return ack?.({ ok: false, error: "Invalid targetIndex" });
         }
 
+        room.state.lockedIndices ||= {};
+
+        // Check if index is locked
+        if (room.state.lockedIndices[targetIndex]) {
+          const lock = room.state.lockedIndices[targetIndex];
+          if (lock.lockedBy !== playerId) {
+            return ack?.({ ok: false, error: "This letter is locked for this round!" });
+          }
+        }
+
         const card = player.cards[cardIndex];
+        
+        // Handle playing a lock card
+        if (card.isLock) {
+           player.cards.splice(cardIndex, 1);
+           room.state.lockedIndices[targetIndex] = {
+             lockedBy: playerId,
+             turnsRemaining: room.players.length
+           };
+
+           room.state.playedWords ||= [];
+           room.state.playedWords.push({
+             ok: true,
+             playerId,
+             at: Date.now(),
+             centerWordBefore: centerWord,
+             centerWordAfter: centerWord, // Word doesn't change
+             move: { card, pick: "A", targetIndex, isLockAction: true },
+           });
+
+           // End game check? (playing a lock card can win the game)
+           if (player.cards.length === 0) {
+              room.state.phase = "game-over";
+              room.state.winner = playerId;
+              io.to(roomCode).emit("room:update", { room });
+              io.to(roomCode).emit("game:ended", { winnerId: playerId });
+              return ack?.({ ok: true, valid: true, newWord: centerWord });
+           }
+
+           const now = Date.now();
+           
+           // Decrement lock turns before passing turn
+           decrementLocks(room);
+
+           room.state.currentPlayerIndex = nextPlayerIndex(room, room.state.currentPlayerIndex);
+           room.state.turnStartedAt = now;
+
+           io.to(roomCode).emit("room:update", { room });
+           io.to(roomCode).emit("game:move-applied", {
+             playerId,
+             newWord: centerWord,
+             targetIndex,
+             pick: "A",
+             turnStartedAt: now,
+             currentPlayerIndex: room.state.currentPlayerIndex,
+             isLockAction: true,
+           });
+
+           return ack?.({ ok: true, valid: true, newWord: centerWord });
+        }
+
+
         let chosenLetter = pick === "B" ? card.letterB : card.letterA;
 
         // Apply special card letter if provided and valid
@@ -630,6 +713,7 @@ export function setupSocket(httpServer) {
 
           // pass the turn anyway
           const now = Date.now();
+          decrementLocks(room);
           room.state.currentPlayerIndex = nextPlayerIndex(
             room,
             room.state.currentPlayerIndex,
@@ -682,6 +766,7 @@ export function setupSocket(httpServer) {
 
         // next turn
         const now = Date.now();
+        decrementLocks(room);
         room.state.currentPlayerIndex = nextPlayerIndex(
           room,
           room.state.currentPlayerIndex,
@@ -730,7 +815,7 @@ export function setupSocket(httpServer) {
         if (!Array.isArray(player.cards)) player.cards = [];
 
         // 1. Draw a card
-        const drawnCard = drawCardFromDeck();
+        const drawnCard = drawCardFromDeck(room);
         player.cards.push(drawnCard);
 
         // 2. Add to history so players know a skip happened
@@ -744,7 +829,10 @@ export function setupSocket(httpServer) {
           action: "pass"
         });
 
-        // 3. Pass turn
+        // 3. Decrement lock turns before passing turn
+        decrementLocks(room);
+
+        // 4. Pass turn
         const now = Date.now();
         room.state.currentPlayerIndex = nextPlayerIndex(
           room,
@@ -1076,7 +1164,7 @@ export function setupSocket(httpServer) {
 
       if (player) {
         player.cards ||= [];
-        player.cards.push(drawCardFromDeck());
+        player.cards.push(drawCardFromDeck(room));
       }
 
       room.state.playedWords ||= [];
@@ -1087,6 +1175,7 @@ export function setupSocket(httpServer) {
         at: now,
       });
 
+      decrementLocks(room);
       room.state.currentPlayerIndex = nextPlayerIndex(room, idx);
       room.state.turnStartedAt = now;
 

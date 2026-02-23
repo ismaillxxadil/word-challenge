@@ -26,6 +26,7 @@ export function createEmptyRoom(hostPlayer) {
       settings: {
         startingCards: 7,
         allowVar: true,
+        allowLockCard: true,
         timePerTurn: 15,
         varDuration: 15,
       },
