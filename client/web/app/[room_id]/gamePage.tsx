@@ -206,10 +206,14 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
     ? players.find((p) => p.id === winnerId)?.name || "لاعب"
     : "";
 
-  // Sound Effects for Turn and Game Over
+  // Turn and State Cleanups
   useEffect(() => {
     if (isMyTurn) {
       play("turn");
+    } else {
+      setSelectedCardIndex(null);
+      setSelectedFace(null);
+      setWildcardPendingPlay(null);
     }
   }, [isMyTurn, play]);
 
@@ -752,14 +756,29 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
           for (let i = 0; i < cardsDrawn; i++) {
             setTimeout(() => {
               play("draw");
-              const opponentAvatarEl = document.getElementById(
+              const opponentHandEl = document.getElementById(
+                `player-hand-${curr.id}`,
+              );
+              const opponentEl = opponentHandEl || document.getElementById(
                 `player-avatar-${curr.id}`,
               );
               
-              if (opponentAvatarEl) {
-                const targetRect = opponentAvatarEl.getBoundingClientRect();
+              const deckEl = document.getElementById("deck-stack");
+              const startRect = deckEl?.getBoundingClientRect() || {
+                top: window.innerHeight / 2 - 50,
+                left: window.innerWidth / 2 - 40,
+                width: 80,
+                height: 110,
+              };
+
+              if (opponentEl) {
+                const targetRect = opponentEl.getBoundingClientRect();
                 const flyId = `fly-opp-draw-${curr.id}-${Date.now()}-${i}`;
                 
+                // If it's the hand container, aim for the middle of it
+                const targetTop = opponentHandEl ? targetRect.top + targetRect.height / 2 - 35 : targetRect.top;
+                const targetLeft = opponentHandEl ? targetRect.left + targetRect.width / 2 - 25 : targetRect.left;
+
                 setFlyingCards((p) => [
                   ...p,
                   {
@@ -771,14 +790,14 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                     isHidden: true,
                     isDraw: true,
                     startRect: {
-                      top: window.innerHeight / 2 - 50,
-                      left: window.innerWidth / 2 - 40,
-                      width: 80,
-                      height: 110,
+                      top: startRect.top,
+                      left: startRect.left,
+                      width: startRect.width,
+                      height: startRect.height,
                     },
                     targetRect: {
-                      top: targetRect.top,
-                      left: targetRect.left,
+                      top: targetTop,
+                      left: targetLeft,
                       width: 50,
                       height: 70,
                     },
@@ -819,15 +838,18 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
           playItem.move
         ) {
           const { move } = playItem;
-          const opponentAvatarEl = document.getElementById(
+          const opponentHandEl = document.getElementById(
+            `player-hand-${playItem.playerId}`,
+          );
+          const opponentEl = opponentHandEl || document.getElementById(
             `player-avatar-${playItem.playerId}`,
           );
           const targetCardEl = document.getElementById(
             `center-card-${move.targetIndex}`,
           );
 
-          if (opponentAvatarEl && targetCardEl) {
-            const startRect = opponentAvatarEl.getBoundingClientRect();
+          if (opponentEl && targetCardEl) {
+            const startRect = opponentEl.getBoundingClientRect();
             const targetRect = targetCardEl.getBoundingClientRect();
 
             play("play"); // Play sound
@@ -843,8 +865,8 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                 pick: move.pick,
                 isCenter: true,
                 startRect: {
-                  top: startRect.top,
-                  left: startRect.left,
+                  top: opponentHandEl ? startRect.top + startRect.height / 2 - 35 : startRect.top,
+                  left: opponentHandEl ? startRect.left + startRect.width / 2 - 25 : startRect.left,
                   width: 50, // rough guess for small opponent card
                   height: 70,
                 },

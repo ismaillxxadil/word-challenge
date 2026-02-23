@@ -35,6 +35,7 @@ export const OpponentPlayer = ({
       className={`flex flex-col items-center gap-[clamp(4px,1vw,8px)] ${className}`}
     >
       <div
+        id={`player-hand-${playerId}`}
         className={`flex items-start justify-center overflow-visible perspective-[500px] ${
           isSide
             ? "h-[clamp(46px,10vw,70px)] -space-x-6 sm:-space-x-8"
