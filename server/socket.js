@@ -70,7 +70,7 @@ function generatePlayerCards(room, count) {
     // 10% chance of being a wildcard special card
     const isSpecial = Math.random() < 0.1;
     // 5% chance of being a lock card (if not already special)
-    const isLock = allowLockCard && !isSpecial && Math.random() < 0.9;
+    const isLock = allowLockCard && !isSpecial && Math.random() < 0.1;
 
     let letterA, letterB;
 

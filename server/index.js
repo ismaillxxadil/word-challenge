@@ -4,6 +4,7 @@ import "dotenv/config";
 import http from "http";
 
 import roomRouter from "./routes/room.js";
+import dictionaryRouter from "./routes/dictionary.js";
 import { setupSocket } from "./socket.js";
 
 const app = express();
@@ -17,6 +18,7 @@ app.use(
 );
 app.use(express.json());
 app.use("/room", roomRouter);
+app.use("/dictionary", dictionaryRouter);
 
 // 👇 create HTTP server from Express
 const httpServer = http.createServer(app);

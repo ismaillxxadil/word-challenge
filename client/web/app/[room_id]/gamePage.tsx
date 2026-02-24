@@ -13,6 +13,7 @@ import { GameOverModal } from "./game/GameOverModal";
 import { VarVotingLayer } from "./game/VarVotingLayer";
 import { toast } from "sonner";
 import { ArabicLetterPickerModal } from "./game/ArabicLetterPickerModal";
+import { GameLogs } from "./game/GameLogs";
 
 interface GamePageProps {
   room: Room;
@@ -299,7 +300,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
       toast.error(`VAR Error: ${err.code}`);
     };
 
-    const onVarStarted = (data: any) => {
+    const onVarStarted = (data: unknown) => {
       console.log("✅ VAR Session Started:", data);
       play("var");
       toast.info("بدأت جلسة الـ VAR! ⚖️");
@@ -1221,6 +1222,9 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
           onSelect={handleWildcardSelect}
           onClose={() => setWildcardPendingPlay(null)}
         />
+        
+        {/* 📜 GAME LOGS 📜 */}
+        <GameLogs />
       </div>
     </LayoutGroup>
   );
