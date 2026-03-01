@@ -4,6 +4,21 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
+import { z } from "zod";
+
+const positiveInt = z.number().int().min(1);
+const positiveSecs = z.number().positive();
+
+const settingsSchema = z.object({
+  startingCards: positiveInt.max(20).optional(),
+  allowVar: z.boolean().optional(),
+  allowLockCard: z.boolean().optional(),
+  timePerTurn: positiveSecs.max(300).optional(),
+  varDuration: positiveSecs.max(300).optional(),
+  varExplanationDuration: positiveSecs.max(300).optional(),
+  noRepeatWords: z.boolean().optional(),
+  maxRepeatCount: positiveInt.max(100).optional(),
+});
 
 // Load word list for game
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -366,12 +381,20 @@ export function setupSocket(httpServer) {
       if (!room) return;
 
       if (!requireHost(room, socket.id)) return;
-      // Store settings in room state
-      room.state.settings = settings;
+
+      // Validate and coerce the incoming settings; ignore unknown/invalid fields
+      const parsed = settingsSchema.safeParse(settings);
+      if (!parsed.success) {
+        socket.emit("room:error", { message: "Invalid settings", errors: parsed.error.flatten().fieldErrors });
+        return;
+      }
+
+      // Merge validated fields into existing settings to preserve defaults
+      room.state.settings = { ...room.state.settings, ...parsed.data };
 
       // Broadcast settings update to all players in the room
       touchRoom(room);
-      io.to(roomCode).emit("room:settings-update", { settings });
+      io.to(roomCode).emit("room:settings-update", { settings: room.state.settings });
     });
 
     socket.on("room:send-emoji", ({ roomCode, playerId, emoji }) => {
