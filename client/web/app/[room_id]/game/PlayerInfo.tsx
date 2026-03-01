@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoomStore } from "@/store/useRoomStore";
 
-const EMOJIS = ["😂", "😍", "😡", "😭", "👍", "👎", "🔥", "🤔"];
+const EMOJIS = [
+  "😂", "😍", "😡", "😭",
+  "👍", "👎", "🔥", "🤔",
+  "😮", "🤣", "🥳", "❤️",
+  "💀", "😴", "🤯", "😤",
+];
 
 interface EmojiReaction {
   id: string;
@@ -29,7 +34,7 @@ export const PlayerInfo = ({
   avatar,
   cards = [],
   onVarClick,
-  varDisabledReason, // New prop
+  varDisabledReason,
   className = "",
   isActiveTurn = false,
   isOnline = true,
@@ -38,6 +43,7 @@ export const PlayerInfo = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [reactions, setReactions] = useState<EmojiReaction[]>([]);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -51,7 +57,7 @@ export const PlayerInfo = ({
         // Remove the emoji after animation completes
         setTimeout(() => {
           setReactions((prev) => prev.filter((r) => r.id !== id));
-        }, 2000); // match animation duration roughly
+        }, 2000);
       }
     };
 
@@ -62,15 +68,27 @@ export const PlayerInfo = ({
     };
   }, [socket, playerId]);
 
+  // Smart positioning: keep emoji picker inside viewport
+  const [pickerSide, setPickerSide] = useState<"right" | "left">("right");
+
+  useEffect(() => {
+    if (!showEmojiPicker || !toggleRef.current) return;
+    const rect = toggleRef.current.getBoundingClientRect();
+    // If the button is in the left half of the screen, anchor picker to the left
+    if (rect.left < window.innerWidth / 2) {
+      setPickerSide("left");
+    } else {
+      setPickerSide("right");
+    }
+  }, [showEmojiPicker]);
+
   const sendEmoji = (emoji: string) => {
     if (!socket || !room) return;
-    
     socket.emit("room:send-emoji", {
       roomCode: room.code,
       playerId,
       emoji,
     });
-    
     setShowEmojiPicker(false);
   };
 
@@ -118,7 +136,7 @@ export const PlayerInfo = ({
             ].join(" ")}
             title={isOnline ? "متصل" : "غير متصل"}
           />
-          
+
           {/* Active Turn Indicator (Ring) */}
           {isActiveTurn && isOnline && (
              <span className="absolute -inset-1 rounded-full border border-emerald-400/40 animate-pulse" />
@@ -131,10 +149,11 @@ export const PlayerInfo = ({
                 <motion.div
                   key={reaction.id}
                   initial={{ opacity: 0, scale: 0.5, y: 0 }}
-                  animate={{ opacity: 1, scale: 1, y: -40 }}
-                  exit={{ opacity: 0, scale: 0.8, y: -50 }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="absolute bottom-0 text-3xl filter drop-shadow-md"
+                  animate={{ opacity: 1, scale: 1.3, y: -40 }}
+                  exit={{ opacity: 0, scale: 0.8, y: -60 }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
+                  className="absolute bottom-0 text-3xl"
+                  style={{ fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif" }}
                 >
                   {reaction.emoji}
                 </motion.div>
@@ -164,8 +183,9 @@ export const PlayerInfo = ({
               ref={toggleRef}
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="w-[28px] h-[28px] sm:w-[32px] sm:h-[32px] rounded-full bg-slate-800/80 hover:bg-slate-700 text-white flex items-center justify-center text-sm shadow-sm transition-transform active:scale-95 border border-white/5"
+              className="w-[28px] h-[28px] sm:w-[32px] sm:h-[32px] rounded-full bg-slate-800/80 hover:bg-slate-700 flex items-center justify-center text-lg shadow-sm transition-transform active:scale-95 border border-white/5"
               title="تفاعل"
+              style={{ fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif" }}
             >
               😊
             </button>
@@ -175,23 +195,32 @@ export const PlayerInfo = ({
               {showEmojiPicker && (
                 <>
                   {/* Backdrop to close picker on click outside */}
-                  <div 
+                  <div
                     className="fixed inset-0 z-40"
                     onClick={() => setShowEmojiPicker(false)}
                   />
                   <motion.div
+                    ref={pickerRef}
                     initial={{ opacity: 0, y: 10, scale: 0.9 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.9 }}
                     transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                    className="absolute bottom-full right-0 mb-2 p-2 bg-slate-800 border border-slate-700 rounded-2xl shadow-xl z-50 grid grid-cols-4 gap-1.5 w-max"
+                    style={{
+                      fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif",
+                      // Smart anchor: open toward center of screen, not off-edge
+                      ...(pickerSide === "left"
+                        ? { left: 0, right: "auto" }
+                        : { right: 0, left: "auto" }),
+                    }}
+                    className="absolute bottom-full mb-2 p-2 bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl z-50 grid grid-cols-4 gap-1.5 w-max"
                   >
                     {EMOJIS.map((emoji) => (
                       <button
                         key={emoji}
                         type="button"
                         onClick={() => sendEmoji(emoji)}
-                        className="text-xl sm:text-2xl p-1.5 hover:scale-125 transition-transform hover:bg-white/10 rounded-lg"
+                        className="text-xl sm:text-2xl p-1.5 hover:scale-125 transition-transform hover:bg-white/10 rounded-lg leading-none"
+                        style={{ fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif" }}
                       >
                         {emoji}
                       </button>

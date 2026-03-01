@@ -13,6 +13,7 @@ export function createEmptyRoom(hostPlayer) {
   const room = {
     code,
     createdAt: Date.now(),
+    lastActivity: Date.now(),
     players: [hostPlayer], // max 4
     state: {
       phase: "lobby", // "in-game", "voting", "ended"
@@ -29,6 +30,8 @@ export function createEmptyRoom(hostPlayer) {
         allowLockCard: true,
         timePerTurn: 15,
         varDuration: 15,
+        noRepeatWords: false,
+        maxRepeatCount: 1,
       },
     },
   };

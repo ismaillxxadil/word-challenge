@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Lalezar, Cairo } from "next/font/google";
+import { Lalezar } from "next/font/google";
 import "./globals.css";
 
 const lalezar = Lalezar({
   variable: "--font-lalezar",
   subsets: ["arabic"],
   weight: "400",
-});
-
-const cairo = Cairo({
-  variable: "--font-cairo",
-  subsets: ["arabic"],
 });
 
 export const metadata: Metadata = {
@@ -27,11 +22,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Playpen+Sans+Arabic:wght@100..800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
-        className={`${lalezar.variable} ${cairo.variable} antialiased font-sans`}
+        className={`${lalezar.variable} antialiased font-sans`}
       >
         {children}
-        <Toaster position="top-center" richColors />
+        <Toaster position="top-center" richColors theme="dark" />
       </body>
     </html>
   );

@@ -63,6 +63,12 @@ function makeCardId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function touchRoom(room) {
+  if (room) {
+    room.lastActivity = Date.now();
+  }
+}
+
 function generatePlayerCards(room, count) {
   const allowLockCard = room?.state?.settings?.allowLockCard ?? false;
   const cards = [];
@@ -338,12 +344,20 @@ export function setupSocket(httpServer) {
         return socket.emit("room:error", { message: "Player not found" });
 
       player.socketId = socket.id;
+      
+      // If the player had a pending disconnect timer, clear it because they reconnected
+      if (player.disconnectTimeout) {
+        clearTimeout(player.disconnectTimeout);
+        player.disconnectTimeout = null;
+      }
+      
       socket.join(room.code);
 
       // send snapshot to the joining socket
       socket.emit("room:snapshot", { room });
 
       // broadcast update to everyone
+      touchRoom(room);
       io.to(room.code).emit("room:update", { room });
     });
 
@@ -356,6 +370,7 @@ export function setupSocket(httpServer) {
       room.state.settings = settings;
 
       // Broadcast settings update to all players in the room
+      touchRoom(room);
       io.to(roomCode).emit("room:settings-update", { settings });
     });
 
@@ -363,6 +378,7 @@ export function setupSocket(httpServer) {
       const room = getRoom(roomCode);
       if (!room) return;
       // Broadcast the emoji back to everyone in this room
+      touchRoom(room);
       io.to(roomCode).emit("room:receive-emoji", { playerId, emoji });
     });
 
@@ -424,6 +440,7 @@ export function setupSocket(httpServer) {
       playerToPromote.isHost = true;
 
       // Broadcast room update to all players
+      touchRoom(room);
       io.to(roomCode).emit("room:update", { room });
     });
 
@@ -517,6 +534,7 @@ export function setupSocket(httpServer) {
       });
       // Emit restart event for animation
       io.to(roomCode).emit("game:restarted");
+      touchRoom(room);
       io.to(roomCode).emit("room:update", { room });
     });
 
@@ -546,6 +564,7 @@ export function setupSocket(httpServer) {
         p.useVar = false;
       });
 
+      touchRoom(room);
       io.to(roomCode).emit("room:update", { room });
     });
 
@@ -691,6 +710,24 @@ export function setupSocket(httpServer) {
 
         //تاريخ اللعب
         room.state.playedWords ||= [];
+
+        // ── No-Repeat Word Rule ──────────────────────────────────────────
+        if (isValid && room.state.settings?.noRepeatWords) {
+          const maxAllowed = room.state.settings.maxRepeatCount ?? 1;
+          // Count how many times this exact word appeared as centerWordAfter
+          const timesPlayed = room.state.playedWords.filter(
+            (e) => e.centerWordAfter === newWord
+          ).length;
+          if (timesPlayed >= maxAllowed) {
+            return ack?.({
+              ok: true,
+              valid: false,
+              newWord,
+              repeatViolation: true,
+            });
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         if (!isValid) {
           // ❌ Invalid move:
@@ -992,6 +1029,7 @@ export function setupSocket(httpServer) {
         room.state.phase = "var";
 
         // 10) broadcast start
+        touchRoom(room);
         io.to(roomCode).emit("room:update", { room });
         io.to(roomCode).emit("var:started", {
           id: room.state.varSession.id,
@@ -1106,6 +1144,7 @@ export function setupSocket(httpServer) {
         rejectCount,
         voters: Object.keys(s.votes),
       });
+      touchRoom(room);
       io.to(roomCode).emit("room:update", { room });
       // Step 4: early resolve + all-voted resolve
       const { accept, reject } = tallyVotes(s.votes);
@@ -1136,6 +1175,60 @@ export function setupSocket(httpServer) {
         const p = room.players.find((x) => x.socketId === socket.id);
         if (p) {
           p.socketId = null;
+          
+          // Clear any existing timer just in case
+          if (p.disconnectTimeout) {
+            clearTimeout(p.disconnectTimeout);
+          }
+          
+          // Set a 3-hour timer to remove the player
+          const timer = setTimeout(() => {
+            // Re-fetch the room explicitly
+            const r = rooms.get(room.code);
+            if (!r) return;
+            
+            const playerIndex = r.players.findIndex(player => player.id === p.id);
+            if (playerIndex === -1) return;
+
+            // They are still disconnected after 3 hours across any reconnections
+            if (!r.players[playerIndex].socketId) {
+               // Handle turn logic
+               if (r.state.phase === "in-game") {
+                 if (playerIndex < r.state.currentPlayerIndex) {
+                   r.state.currentPlayerIndex--;
+                 } else if (playerIndex === r.state.currentPlayerIndex) {
+                   const newLength = r.players.length - 1;
+                   r.state.currentPlayerIndex = newLength > 0 ? playerIndex % newLength : 0;
+                   r.state.turnStartedAt = Date.now();
+                 }
+               }
+               
+               const leavingPlayer = r.players[playerIndex];
+               const wasHost = leavingPlayer.isHost;
+               
+               r.players.splice(playerIndex, 1);
+               
+               if (wasHost && r.players.length > 0) {
+                 r.players[0].isHost = true;
+               }
+               
+               if (r.players.length === 0) {
+                 rooms.delete(room.code);
+               } else {
+                 touchRoom(r);
+                 io.to(room.code).emit("room:update", { room: r });
+               }
+            }
+          }, 3 * 60 * 60 * 1000); // 3 hours
+
+          Object.defineProperty(p, "disconnectTimeout", {
+            value: timer,
+            writable: true,
+            enumerable: false,
+            configurable: true,
+          });
+          
+          touchRoom(room);
           io.to(room.code).emit("room:update", { room });
           break;
         }
