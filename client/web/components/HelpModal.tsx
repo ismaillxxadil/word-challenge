@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import {
   X, ChevronLeft, ChevronRight,
@@ -173,6 +173,46 @@ export function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   const slide = slides[idx];
   const isFirst = idx === 0;
   const isLast  = idx === slides.length - 1;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Close on Escape
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      onClose();
+      return;
+    }
+    // Focus trap
+    if (e.key === "Tab" && dialogRef.current) {
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.hasAttribute("disabled"));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.addEventListener("keydown", handleKeyDown);
+    // Auto-focus close button when modal opens
+    closeBtnRef.current?.focus();
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, handleKeyDown]);
 
   if (!isOpen) return null;
 
@@ -182,16 +222,22 @@ export function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Sheet / Modal */}
-      <div className="relative z-10 w-full sm:max-w-lg bg-slate-900 border border-slate-700/50 rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90dvh] flex flex-col">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="help-modal-title"
+        className="relative z-10 w-full sm:max-w-lg bg-slate-900 border border-slate-700/50 rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90dvh] flex flex-col"
+      >
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800 flex-shrink-0">
-          <button onClick={onClose} className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors">
+          <button ref={closeBtnRef} onClick={onClose} aria-label="إغلاق" className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors">
             <X size={17} />
           </button>
           <div className="flex items-center gap-2">
             <HelpCircle size={15} className="text-purple-400" />
-            <span className="text-sm font-bold text-slate-200">كيف تلعب؟</span>
+            <span id="help-modal-title" className="text-sm font-bold text-slate-200">كيف تلعب؟</span>
           </div>
           {/* Dots */}
           <div className="flex gap-1.5 items-center">
