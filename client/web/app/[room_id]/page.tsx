@@ -160,10 +160,17 @@ export default function RoomPage() {
           {room.state.phase === "lobby" ? (
             <motion.div
               key="lobby"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={
+                {
+                  opacity: 0,
+                  scale: 1.15,
+                  filter: "brightness(3) blur(20px)",
+                  transition: { duration: 0.55, ease: [0.4, 0, 1, 1] },
+                } as Parameters<typeof motion.div>[0]["exit"]
+              }
+              transition={{ duration: 0.4, ease: "easeOut" }}
               className="w-full h-full flex items-center justify-center p-4"
             >
               <LobbyPage room={room} handleLeave={handleLeave} />
@@ -171,10 +178,22 @@ export default function RoomPage() {
           ) : (
             <motion.div
               key="game"
-              initial={{ opacity: 0, scale: 1.1, filter: "blur(10px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+              initial={{
+                opacity: 0,
+                scale: 0.92,
+                filter: "brightness(0) blur(0px)",
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                filter: "brightness(1) blur(0px)",
+              }}
+              exit={{ opacity: 0 }}
+              transition={{
+                duration: 0.7,
+                ease: [0.16, 1, 0.3, 1],
+                opacity: { duration: 0.5 },
+              }}
               className="fixed inset-0 z-0"
             >
               <GamePage room={room} handleLeave={handleLeave} />

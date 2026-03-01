@@ -77,7 +77,7 @@ export const PlayCard = ({
               {/* Letter B (Top Left) */}
               <div className="flex flex-col items-center self-end z-10">
                 <span className={`${isLock ? "text-slate-800" : "text-emerald-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
-                  {letterB === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterB}
+                  {letterB === "🔒" ? <Lock strokeWidth={3} className="text-cyan-600" style={{ width: 'clamp(8px,1.2vw,12px)', height: 'clamp(8px,1.2vw,12px)' }} /> : letterB}
                 </span>
               </div>
 
@@ -88,14 +88,14 @@ export const PlayCard = ({
                   className="text-[clamp(20px,3.5vw,32px)] leading-none font-serif text-slate-800 drop-shadow-sm select-none"
                   dir="rtl"
                 >
-                  {letterA === "🔒" ? <Lock size={28} className="text-cyan-600" strokeWidth={2.5} /> : letterA}
+                  {letterA === "🔒" ? <Lock strokeWidth={2.5} className="text-cyan-600" style={{ width: 'clamp(16px,3vw,26px)', height: 'clamp(16px,3vw,26px)' }} /> : letterA}
                 </span>
               </div>
 
               {/* Letter B (Bottom Right - Rotated) */}
               <div className="flex flex-col items-center self-start transform rotate-180 z-10">
                 <span className={`${isLock ? "text-slate-800" : "text-emerald-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
-                  {letterB === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterB}
+                  {letterB === "🔒" ? <Lock strokeWidth={3} className="text-cyan-600" style={{ width: 'clamp(8px,1.2vw,12px)', height: 'clamp(8px,1.2vw,12px)' }} /> : letterB}
                 </span>
               </div>
               
@@ -129,7 +129,7 @@ export const PlayCard = ({
               {/* Content */}
               <div className="flex flex-col items-center self-end z-10">
                 <span className={`${isLock ? "text-slate-800" : "text-amber-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
-                  {letterA === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterA}
+                  {letterA === "🔒" ? <Lock strokeWidth={3} className="text-cyan-600" style={{ width: 'clamp(8px,1.2vw,12px)', height: 'clamp(8px,1.2vw,12px)' }} /> : letterA}
                 </span>
               </div>
               <div className="flex-1 flex items-center justify-center relative z-10">
@@ -138,12 +138,12 @@ export const PlayCard = ({
                   className="text-[clamp(24px,4vw,36px)] leading-none font-serif text-slate-800 drop-shadow-sm select-none"
                   dir="rtl"
                 >
-                  {letterB === "🔒" ? <Lock size={28} className="text-cyan-600" strokeWidth={2.5} /> : letterB}
+                  {letterB === "🔒" ? <Lock strokeWidth={2.5} className="text-cyan-600" style={{ width: 'clamp(16px,3vw,26px)', height: 'clamp(16px,3vw,26px)' }} /> : letterB}
                 </span>
               </div>
               <div className="flex flex-col items-center self-start transform rotate-180 z-10">
                 <span className={`${isLock ? "text-slate-800" : "text-amber-600"} font-serif text-[clamp(10px,1.5vw,14px)] font-bold leading-none`}>
-                  {letterA === "🔒" ? <Lock size={12} strokeWidth={3} className="text-cyan-600" /> : letterA}
+                  {letterA === "🔒" ? <Lock strokeWidth={3} className="text-cyan-600" style={{ width: 'clamp(8px,1.2vw,12px)', height: 'clamp(8px,1.2vw,12px)' }} /> : letterA}
                 </span>
               </div>
                {/* Pick Overlay */}

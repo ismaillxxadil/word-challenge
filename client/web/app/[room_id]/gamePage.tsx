@@ -437,7 +437,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
         targetIndex: targetIndex,
         currentWord: currentWord,
       },
-      (response: { ok: boolean; error?: string; valid?: boolean; win?: boolean }) => {
+      (response: { ok: boolean; error?: string; valid?: boolean; win?: boolean; repeatViolation?: boolean }) => {
         if (!response.ok) {
           console.error("Play card failed:", response.error);
           toast.error(response.error || "فشل لعب البطاقة");
@@ -447,6 +447,25 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
             setHiddenCardId(null);
             setFlyingCards((prev) => prev.filter((c) => c.cardId !== card.id));
           });
+        } else if (response.repeatViolation) {
+          // Word repeat rule violation
+          play("invalid");
+          toast.error("🔁 هذه الكلمة سبق لعبها! لا يمكن تكرارها.", { duration: 3000 });
+          setFlyingCards((prev) =>
+            prev.map((c) => {
+              if (c.cardId !== card.id) return c;
+              return {
+                ...c,
+                status: "returning",
+                onComplete: () => {
+                  setFlyingCards((p) =>
+                    p.filter((fc) => fc.cardId !== card.id),
+                  );
+                  setHiddenCardId(null);
+                },
+              };
+            }),
+          );
         } else if (response.valid === false) {
            play("invalid");
            setFlyingCards((prev) =>
@@ -965,47 +984,52 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
   return (
     <LayoutGroup>
       <div className="fixed inset-0 w-full h-full bg-slate-900 bg-[url('/bg.png')] bg-cover bg-center overflow-hidden z-0">
-        {/* Modern Game Header */}
         {/* Modern Compact Header */}
-        <div className="absolute top-3 right-3 z-40 flex items-center p-1 gap-1 bg-slate-950/60 backdrop-blur-md rounded-2xl border border-slate-700/40 shadow-sm">
-          {/* Room Code */}
-          <div className="px-3 py-1 flex items-center justify-center text-slate-400 font-mono text-xs font-bold border-l border-white/5 ml-1">
-            #{room.code}
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-40 flex flex-col items-center sm:items-end p-0.5 sm:p-1.5 gap-0.5 sm:gap-1.5 bg-slate-950/60 backdrop-blur-md rounded-xl sm:rounded-[24px] border border-slate-700/40 shadow-sm min-w-[24px] sm:min-w-[36px]">
+          
+          <div className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 p-0.5">
+            {isHost && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleRestart}
+                  title="إعادة اللعب"
+                  className="w-[18px] h-[18px] sm:w-8 sm:h-8 flex items-center justify-center rounded-md sm:rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white active:scale-95 transition-all duration-200"
+                >
+                  <RotateCcw size={9} strokeWidth={2.5} className="sm:hidden" />
+                  <RotateCcw size={15} strokeWidth={2.5} className="hidden sm:block" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReturnToLobby}
+                  title="العودة للوبي"
+                  className="w-[18px] h-[18px] sm:w-8 sm:h-8 flex items-center justify-center rounded-md sm:rounded-full bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white active:scale-95 transition-all duration-200"
+                >
+                  <Home size={9} strokeWidth={2.5} className="sm:hidden" />
+                  <Home size={15} strokeWidth={2.5} className="hidden sm:block" />
+                </button>
+                <div className="w-2 h-px sm:w-px sm:h-4 bg-slate-700/50" />
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                play("click");
+                handleLeave();
+              }}
+              title="خروج"
+              className="w-[18px] h-[18px] sm:w-8 sm:h-8 flex items-center justify-center rounded-md sm:rounded-full bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white active:scale-95 transition-all duration-200"
+            >
+              <LogOut size={9} strokeWidth={2.5} className="sm:hidden" />
+              <LogOut size={15} strokeWidth={2.5} className="hidden sm:block ml-0.5" />
+            </button>
           </div>
 
-          {isHost && (
-            <>
-              <button
-                type="button"
-                onClick={handleRestart}
-                title="إعادة اللعب"
-                className="w-7 h-7 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95 transition-all duration-200"
-              >
-                <RotateCcw size={14} strokeWidth={2.5} />
-              </button>
-              <button
-                type="button"
-                onClick={handleReturnToLobby}
-                title="العودة للوبي"
-                className="w-7 h-7 flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white hover:shadow-lg hover:shadow-blue-500/20 active:scale-95 transition-all duration-200"
-              >
-                <Home size={14} strokeWidth={2.5} />
-              </button>
-              <div className="w-px h-4 bg-slate-700/50 mx-0.5" />
-            </>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              play("click");
-              handleLeave();
-            }}
-            title="خروج"
-            className="w-7 h-7 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white hover:shadow-lg hover:shadow-red-500/20 active:scale-95 transition-all duration-200"
-          >
-            <LogOut size={14} strokeWidth={2.5} className="ml-0.5" />
-          </button>
+          {/* Room Code */}
+          <div className="w-full pt-0.5 sm:pt-0 sm:pl-2 flex items-center justify-center text-slate-400 font-mono text-[7px] sm:text-xs font-bold border-t border-slate-700/50 sm:border-t-0 sm:border-r">
+            #{room.code}
+          </div>
         </div>
 
         <div className="h-full w-full grid overflow-visible grid-cols-[minmax(0,1.2fr)_minmax(0,2.2fr)_minmax(0,0.9fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] gap-[clamp(6px,2vw,18px)] px-2 pb-2 pt-4">

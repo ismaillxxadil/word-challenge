@@ -16,6 +16,8 @@ interface RoomStore {
     allowLockCard: boolean;
     varDuration?: number;
     varExplanationDuration?: number;
+    noRepeatWords?: boolean;
+    maxRepeatCount?: number;
   };
   roomLinkCopied: boolean;
 
@@ -31,6 +33,8 @@ interface RoomStore {
     allowLockCard: boolean;
     varDuration?: number;
     varExplanationDuration?: number;
+    noRepeatWords?: boolean;
+    maxRepeatCount?: number;
   }) => void;
   setRoomLinkCopied: (copied: boolean) => void;
   initializeSocket: () => Socket;
@@ -53,6 +57,8 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     allowLockCard: true,
     varDuration: 15,
     varExplanationDuration: 15,
+    noRepeatWords: false,
+    maxRepeatCount: 1,
   },
 
   setRoom: (room) => set({ room }),
