@@ -13,8 +13,7 @@ import {
   Layers,
   Share2,
   Settings,
-  PlayCircle,
-  Sparkles
+  PlayCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSound } from "@/hooks/useSound";
