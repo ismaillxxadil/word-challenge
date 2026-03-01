@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRoomStore } from "@/store/useRoomStore";
 import Model from "@/components/Model";
 import LobbyPage from "./LobbyPage";
 import GamePage from "./gamePage";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSound } from "@/hooks/useSound";
 
 export default function RoomPage() {
   const params = useParams<{ room_id: string }>();
@@ -25,12 +26,24 @@ export default function RoomPage() {
     leaveRoom,
   } = useRoomStore();
 
+  const { play } = useSound();
+  const prevPhaseRef = useRef<string | null>(null);
+
   const [joinName, setJoinName] = useState("");
   const [joinError, setJoinError] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const [avatar, setAvatar] = useState(
     "https://api.dicebear.com/7.x/avataaars/svg?seed=flex-089",
   );
+
+  // Play air-whoosh sound exactly when game phase starts (same moment animation starts)
+  useEffect(() => {
+    const phase = room?.state?.phase;
+    if (prevPhaseRef.current === "lobby" && phase && phase !== "lobby") {
+      play("start");
+    }
+    prevPhaseRef.current = phase ?? null;
+  }, [room?.state?.phase, play]);
 
   // Initialize room connection on mount
   useEffect(() => {

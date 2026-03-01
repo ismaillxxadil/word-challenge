@@ -1,5 +1,4 @@
-
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Howl } from "howler";
 
 type SoundType = 
@@ -24,7 +23,7 @@ const SOUND_PATHS: Record<SoundType, string> = {
     draw: "/sounds/draw_card.wav",
     win: "/sounds/win.ogg",
     lose: "/sounds/lose.mp3", // create placeholder or handle missing
-    start: "/sounds/game_start.mp3", // create placeholder
+    start: "/sounds/air-woosh.wav",
     turn: "/sounds/your_turn.mp3", // create placeholder
     invalid: "/sounds/invalid_move.wav",
     var: "/sounds/VAR.mp3", // Updated to match existing file
@@ -64,7 +63,7 @@ export const useSound = () => {
         };
     }, []);
 
-    const play = (type: SoundType, options?: { volume?: number }) => {
+    const play = useCallback((type: SoundType, options?: { volume?: number }) => {
         const sound = sounds.current[type];
         if (sound) {
             if (options?.volume !== undefined) {
@@ -72,14 +71,14 @@ export const useSound = () => {
             }
             sound.play();
         }
-    };
+    }, []);
 
-    const stop = (type: SoundType) => {
+    const stop = useCallback((type: SoundType) => {
         const sound = sounds.current[type];
         if (sound) {
             sound.stop();
         }
-    };
+    }, []);
 
     return { play, stop };
 };
