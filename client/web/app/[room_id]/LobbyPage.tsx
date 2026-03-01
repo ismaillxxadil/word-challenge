@@ -22,7 +22,6 @@ import {
 import { useRoomStore } from "@/store/useRoomStore";
 import { Room } from "@/app/types";
 import { HelpButton } from "@/components/HelpModal";
-import { span } from "framer-motion/client";
 
 interface LobbyPageProps {
   room: Room;
