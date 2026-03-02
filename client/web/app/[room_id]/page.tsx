@@ -35,14 +35,12 @@ export default function RoomPage() {
     "https://api.dicebear.com/7.x/avataaars/svg?seed=flex-089",
   );
 
-  // Play air-whoosh sound exactly when game phase starts (same moment animation starts)
+  const prevPhaseRef = useRef<string | null | undefined>(null);
+
+  // Track phase changes (sound is now handled by motion.div onAnimationStart)
   useEffect(() => {
-    const phase = room?.state?.phase;
-    if (prevPhaseRef.current === "lobby" && phase && phase !== "lobby") {
-      play("start");
-    }
-    prevPhaseRef.current = phase ?? null;
-  }, [room?.state?.phase, play]);
+    prevPhaseRef.current = room?.state?.phase ?? null;
+  }, [room?.state?.phase]);
 
   // Initialize room connection on mount
   useEffect(() => {
