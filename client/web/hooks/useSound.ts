@@ -1,5 +1,4 @@
-
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Howl } from "howler";
 
 type SoundType = 
@@ -15,19 +14,17 @@ type SoundType =
     | "var"
     | "timmer";
 
-// Map sound types to file paths
-// Note: We'll use the files we found. If not found, it just won't play (or we can handle error)
 const SOUND_PATHS: Record<SoundType, string> = {
     hover: "/sounds/hover_card.wav",
     click: "/sounds/click_btn.mp3",
     play: "/sounds/play_card.wav",
     draw: "/sounds/draw_card.wav",
     win: "/sounds/win.ogg",
-    lose: "/sounds/lose.mp3", // create placeholder or handle missing
-    start: "/sounds/game_start.mp3", // create placeholder
-    turn: "/sounds/your_turn.mp3", // create placeholder
+    lose: "/sounds/lose.mp3",
+    start: "/sounds/air-woosh.wav",
+    turn: "/sounds/your_turn.mp3",
     invalid: "/sounds/invalid_move.wav",
-    var: "/sounds/VAR.mp3", // Updated to match existing file
+    var: "/sounds/VAR.mp3",
     timmer: "/sounds/timmer.mp3"
 };
 
@@ -47,24 +44,22 @@ export const useSound = () => {
     });
 
     useEffect(() => {
-        // Preload sounds
         Object.entries(SOUND_PATHS).forEach(([key, path]) => {
             const type = key as SoundType;
             sounds.current[type] = new Howl({
                 src: [path],
-                volume: 0.5, // Default volume
+                volume: 1.0,
                 preload: true,
-                html5: true // Force HTML5 Audio to stream large files if needed, though most here are small
+                html5: false
             });
         });
 
-        // Cleanup
         return () => {
-             Object.values(sounds.current).forEach(sound => sound?.unload());
+            Object.values(sounds.current).forEach(sound => sound?.unload());
         };
     }, []);
 
-    const play = (type: SoundType, options?: { volume?: number }) => {
+    const play = useCallback((type: SoundType, options?: { volume?: number }) => {
         const sound = sounds.current[type];
         if (sound) {
             if (options?.volume !== undefined) {
@@ -72,14 +67,14 @@ export const useSound = () => {
             }
             sound.play();
         }
-    };
+    }, []);
 
-    const stop = (type: SoundType) => {
+    const stop = useCallback((type: SoundType) => {
         const sound = sounds.current[type];
         if (sound) {
             sound.stop();
         }
-    };
+    }, []);
 
     return { play, stop };
 };

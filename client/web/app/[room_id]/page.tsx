@@ -7,6 +7,7 @@ import Model from "@/components/Model";
 import LobbyPage from "./LobbyPage";
 import GamePage from "./gamePage";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSound } from "@/hooks/useSound";
 
 export default function RoomPage() {
   const params = useParams<{ room_id: string }>();
@@ -24,6 +25,8 @@ export default function RoomPage() {
     connectToRoom,
     leaveRoom,
   } = useRoomStore();
+
+  const { play } = useSound();
 
   const [joinName, setJoinName] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -188,6 +191,7 @@ export default function RoomPage() {
                 scale: 1,
                 filter: "brightness(1) blur(0px)",
               }}
+              onAnimationStart={() => play("start")}
               exit={{ opacity: 0 }}
               transition={{
                 duration: 0.7,
