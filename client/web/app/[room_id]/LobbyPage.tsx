@@ -22,6 +22,7 @@ import {
 import { useRoomStore } from "@/store/useRoomStore";
 import { Room } from "@/app/types";
 import { HelpButton } from "@/components/HelpModal";
+import { useSound } from "@/hooks/useSound";
 
 interface LobbyPageProps {
   room: Room;
@@ -292,6 +293,7 @@ function SettingsModal({
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
   const { settings, setSettings, socket } = useRoomStore();
+  const { play } = useSound();
   const [roomLinkCopied, setRoomLinkCopied] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -476,7 +478,7 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
         <div className="px-4 sm:px-6 pb-5 sm:pb-6 pt-3 border-t border-slate-800/50">
           <button
             disabled={!canStart}
-            onClick={() => { if (canStart && socket) socket.emit("room:start-game", { roomCode: room.code }); }}
+            onClick={() => { if (canStart && socket) { socket.emit("room:start-game", { roomCode: room.code }); } }}
             className={`w-full relative group overflow-hidden rounded-2xl py-3.5 sm:py-4 text-white font-black text-base sm:text-lg transition-all duration-300 active:scale-[0.98] shadow-xl ${
               canStart
                 ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_auto] hover:bg-[position:right_center] hover:shadow-purple-500/40 cursor-pointer"

@@ -27,7 +27,6 @@ export default function RoomPage() {
   } = useRoomStore();
 
   const { play } = useSound();
-  const prevPhaseRef = useRef<string | null>(null);
 
   const [joinName, setJoinName] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -201,6 +200,7 @@ export default function RoomPage() {
                 scale: 1,
                 filter: "brightness(1) blur(0px)",
               }}
+              onAnimationStart={() => play("start")}
               exit={{ opacity: 0 }}
               transition={{
                 duration: 0.7,
