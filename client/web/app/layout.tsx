@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Lalezar } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css";
 
 const lalezar = Lalezar({
@@ -67,6 +69,8 @@ export default function RootLayout({
       >
         {children}
         <Toaster position="top-center" richColors theme="dark" />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
