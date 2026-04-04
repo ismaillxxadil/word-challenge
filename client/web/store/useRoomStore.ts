@@ -95,7 +95,10 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     };
 
     const onRoomError = (payload: { message: string }) => {
-      set({ error: payload?.message || "خطأ في الغرفة" });
+      set({
+        error: payload?.message || "خطأ في الغرفة",
+        isConnectingToRoom: false,
+      });
     };
 
     socket.on("connect", onConnect);
