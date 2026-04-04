@@ -1066,6 +1066,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                   isMe={false}
                   varDisabledReason={globalVarDisabled || (topOpponent.useVar ? "VAR_ALREADY_USED" : null)}
                   className="pb-3"
+                  isOnline={!!topOpponent.socketId}
                 />
               </div>
             )}
@@ -1085,6 +1086,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                     playerId={leftOpponent.id}
                     isMe={false}
                     varDisabledReason={globalVarDisabled || (leftOpponent.useVar ? "VAR_ALREADY_USED" : null)}
+                    isOnline={!!leftOpponent.socketId}
                   />
                 </div>
               )}
@@ -1126,6 +1128,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                     playerId={rightOpponent.id}
                     isMe={false}
                     varDisabledReason={globalVarDisabled || (rightOpponent.useVar ? "VAR_ALREADY_USED" : null)}
+                    isOnline={!!rightOpponent.socketId}
                   />
                 </div>
               )}
@@ -1151,6 +1154,7 @@ export default function GamePage({ room, handleLeave }: GamePageProps) {
                 onFaceSelect={handleFaceSelect}
                 onVarClick={handleVarStart}
                 varDisabledReason={varBlockReason}
+                isOnline={!!me.socketId}
               />
             )}
           </div>

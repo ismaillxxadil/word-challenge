@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactDOM from "react-dom";
 import {
   X, ChevronLeft, ChevronRight,
@@ -72,6 +72,17 @@ const slides: Slide[] = [
         </Step>
         <Step n={4} color="purple">بمجرد انضمام <b>لاعبَين على الأقل</b>، يمكن للمضيف الضغط على <b>ابدأ اللعبة</b>.</Step>
         <Tip>تستوعب الغرفة حتى 4 لاعبين. يمكن للمضيف ضبط الإعدادات قبل البدء.</Tip>
+        <div className="mt-4 rounded-xl overflow-hidden border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)] relative bg-slate-800/50 aspect-video">
+          <video
+            src="/videos/compressed/create-room.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
     ),
   },
@@ -92,6 +103,17 @@ const slides: Slide[] = [
         <Step n={3} color="blue"><b>انقر الحرف</b> في الكلمة المركزية الذي تريد استبداله.</Step>
         <Step n={4} color="blue">✅ كلمة صحيحة → تُستهلك البطاقة وتنتقل النوبة.<br/>❌ كلمة خاطئة → ترجع البطاقة وتأخذ بطاقة عقوبة.</Step>
         <Tip>يمكنك سحب بطاقة من المجموعة وتخطي دورك إن لم تجد كلمة مناسبة.</Tip>
+        <div className="mt-4 rounded-xl overflow-hidden border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)] relative bg-slate-800/50 aspect-video">
+          <video
+            src="/videos/compressed/play-card.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
     ),
   },
@@ -106,6 +128,17 @@ const slides: Slide[] = [
         <Step n={2} color="yellow">انقر الحرف الذي تريد استبداله في الكلمة.</Step>
         <Step n={3} color="yellow">تظهر <b>لوحة اختيار الحرف</b> — اختر الحرف الذي يكوّن كلمة صحيحة.</Step>
         <Tip>هذه أقوى بطاقة في اللعبة — استخدمها بذكاء في اللحظة الحاسمة!</Tip>
+        <div className="mt-4 rounded-xl overflow-hidden border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.15)] relative bg-slate-800/50 aspect-video">
+          <video
+            src="/videos/compressed/star-card.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
     ),
   },
@@ -121,6 +154,17 @@ const slides: Slide[] = [
         <Step n={3} color="cyan">يظهر 🔒 على الحرف — محميّ حتى اللاعب المالك فقط يستطيع تغييره.</Step>
         <Step n={4} color="cyan">يُفتح القفل بعد عدد جولات يساوي عدد اللاعبين.</Step>
         <Tip>يمكن تعطيل هذه البطاقة من إعدادات الغرفة قبل البدء.</Tip>
+        <div className="mt-4 rounded-xl overflow-hidden border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)] relative bg-slate-800/50 aspect-video">
+          <video
+            src="/videos/compressed/lock-card.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
     ),
   },
@@ -139,6 +183,17 @@ const slides: Slide[] = [
           <VarOutcome win={false} label="❌ رفض" desc="الكلمة باطلة — يأخذ بطاقات عقوبة." />
         </div>
         <Tip>لكل لاعب استخدام VAR مرة واحدة فقط بالمباراة. يمكن تعطيله من الإعدادات.</Tip>
+        <div className="mt-4 rounded-xl overflow-hidden border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] relative bg-slate-800/50 aspect-video">
+          <video
+            src="/videos/compressed/var.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls={false}
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
     ),
   },
@@ -173,6 +228,14 @@ export function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   const slide = slides[idx];
   const isFirst = idx === 0;
   const isLast  = idx === slides.length - 1;
+
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [idx]);
 
   if (!isOpen) return null;
 
@@ -220,7 +283,7 @@ export function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
         </div>
 
         {/* ── Content ── */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+        <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
           <div className={`flex items-center gap-3 mb-4 p-3 rounded-xl border ${accentMap[slide.accent]}`}>
             {slide.icon}
             <h3 className="text-sm font-black text-white leading-tight">{slide.title}</h3>

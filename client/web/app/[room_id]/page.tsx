@@ -42,6 +42,13 @@ export default function RoomPage() {
     prevPhaseRef.current = room?.state?.phase ?? null;
   }, [room?.state?.phase]);
 
+  useEffect(() => {
+    const savedName = localStorage.getItem("vc:name");
+    const savedAvatar = localStorage.getItem("vc:avatar");
+    if (savedName) setJoinName(savedName);
+    if (savedAvatar) setAvatar(savedAvatar);
+  }, []);
+
   // Initialize room connection on mount
   useEffect(() => {
     const playerId = localStorage.getItem("vc:playerId");
@@ -114,7 +121,6 @@ export default function RoomPage() {
     leaveRoom(roomCode, playerId || "");
 
     // Clean up local storage
-    localStorage.removeItem("vc:name");
     localStorage.removeItem("vc:playerId");
     localStorage.removeItem("vc:roomCode");
 

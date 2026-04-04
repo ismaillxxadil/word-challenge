@@ -80,15 +80,13 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   },
 
   connectToRoom: (roomCode: string, playerId: string) => {
-    let socket = get().socket;
-    if (!socket) {
-      socket = get().initializeSocket();
+    let currentSocket = get().socket;
+    if (!currentSocket) {
+      currentSocket = get().initializeSocket();
     }
 
-    socket.connect();
-
     const onConnect = () => {
-      socket.emit("room:join", { roomCode, playerId });
+      currentSocket.emit("room:join", { roomCode, playerId });
     };
 
     const onSnapshot = (payload: { room: Room }) => {
@@ -97,6 +95,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         room: payload.room, 
         isConnectingToRoom: false, 
         error: "",
+        showJoinModal: false,
         // Sync settings from server if they exist
         settings: serverSettings ? { ...get().settings, ...serverSettings } : get().settings
       });
@@ -127,15 +126,33 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     };
 
     const onRoomError = (payload: { message: string }) => {
-      set({ error: payload?.message || "خطأ في الغرفة" });
+      if (payload?.message === "Player not found") {
+        localStorage.removeItem("vc:playerId");
+        set({ error: "", showJoinModal: true, isConnectingToRoom: false });
+      } else {
+        set({ error: payload?.message || "خطأ في الغرفة" });
+      }
     };
 
-    socket.on("connect", onConnect);
-    socket.on("room:snapshot", onSnapshot);
-    socket.on("room:update", onUpdate);
-    socket.on("room:settings-update", onSettingsUpdate);
-    socket.on("room:player-removed", onPlayerRemoved);
-    socket.on("room:error", onRoomError);
+    currentSocket.off("connect");
+    currentSocket.off("room:snapshot");
+    currentSocket.off("room:update");
+    currentSocket.off("room:settings-update");
+    currentSocket.off("room:player-removed");
+    currentSocket.off("room:error");
+
+    currentSocket.on("connect", onConnect);
+    currentSocket.on("room:snapshot", onSnapshot);
+    currentSocket.on("room:update", onUpdate);
+    currentSocket.on("room:settings-update", onSettingsUpdate);
+    currentSocket.on("room:player-removed", onPlayerRemoved);
+    currentSocket.on("room:error", onRoomError);
+
+    if (currentSocket.connected) {
+      onConnect();
+    } else {
+      currentSocket.connect();
+    }
   },
 
   leaveRoom: (roomCode: string, playerId: string) => {

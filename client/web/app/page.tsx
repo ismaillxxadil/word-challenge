@@ -64,6 +64,13 @@ export default function VocabularyChallengeHome() {
     "https://api.dicebear.com/7.x/avataaars/svg?seed=flex-089",
   );
 
+  useEffect(() => {
+    const savedName = localStorage.getItem("vc:name");
+    const savedAvatar = localStorage.getItem("vc:avatar");
+    if (savedName) setUsername(savedName);
+    if (savedAvatar) setAvatar(savedAvatar);
+  }, []);
+
   const [backgroundLetters, setBackgroundLetters] = useState<FloatingLetter[]>([]);
 
   useEffect(() => {
@@ -233,10 +240,19 @@ export default function VocabularyChallengeHome() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className="text-purple-300/80 text-sm lg:text-base font-bold tracking-wide"
+                className="text-purple-300/80 text-sm lg:text-base font-bold tracking-wide mb-6"
               >
                اختبر سرعتك وخزينتك اللغوية...واستمتع مع الاصدقاء
               </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="flex justify-center mt-2 relative z-20"
+              >
+                <HelpButton variant="icon-text" />
+              </motion.div>
             </header>
 
             {/* Tabs */}
@@ -406,12 +422,10 @@ export default function VocabularyChallengeHome() {
             </form>
           </div>
           
-          <div className="bg-slate-900/80 px-4 py-3 flex items-center justify-between border-t border-slate-800/50 rounded-b-3xl">
-            <HelpButton variant="icon-text" />
+          <div className="bg-slate-900/80 px-4 py-4 flex items-center justify-center border-t border-slate-800/50 rounded-b-3xl">
             <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest opacity-80">
               Vocabulary Challenge v2.0
             </p>
-            <div className="w-[88px]" />{/* spacer to center the version text */}
           </div>
         </div>
       </motion.div>

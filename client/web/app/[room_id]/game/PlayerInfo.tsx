@@ -103,7 +103,6 @@ export const PlayerInfo = ({
         isActiveTurn
           ? "ring-2 ring-emerald-400/80 shadow-[0_0_25px_rgba(16,185,129,0.45)]"
           : "",
-        !isOnline ? "opacity-60 grayscale" : "",
         "sm:min-w-[240px]",
         className,
       ].join(" ")}
@@ -132,7 +131,7 @@ export const PlayerInfo = ({
           <span
             className={[
               "absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full z-10",
-              isOnline ? "bg-green-500" : "bg-slate-400",
+              isOnline ? "bg-green-500" : "bg-red-500",
             ].join(" ")}
             title={isOnline ? "متصل" : "غير متصل"}
           />
