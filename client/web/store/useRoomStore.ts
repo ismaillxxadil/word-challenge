@@ -2,6 +2,12 @@ import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
 import { Room } from "@/app/types";
 
+const DEFAULT_SETTINGS = {
+  timePerTurn: 15,
+  startingCards: 7,
+  allowVar: true,
+} as const;
+
 interface RoomStore {
   // State
   room: Room | null;
@@ -35,11 +41,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   showJoinModal: false,
   isConnectingToRoom: false,
   wasKicked: false,
-  settings: {
-    timePerTurn: 15,
-    startingCards: 7,
-    allowVar: true,
-  },
+  settings: { ...DEFAULT_SETTINGS },
 
   setRoom: (room) => set({ room }),
   setError: (error) => set({ error }),
@@ -102,7 +104,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
         showJoinModal: false,
         isConnectingToRoom: false,
         wasKicked: true,
-        settings: { timePerTurn: 15, startingCards: 7, allowVar: true },
+        settings: { ...DEFAULT_SETTINGS },
       });
     };
 
@@ -143,7 +145,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       showJoinModal: false,
       isConnectingToRoom: false,
       wasKicked: false,
-      settings: { timePerTurn: 15, startingCards: 7, allowVar: true },
+      settings: { ...DEFAULT_SETTINGS },
     });
   },
 }));

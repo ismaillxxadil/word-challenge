@@ -22,6 +22,7 @@ export default function RoomPage() {
     setIsConnectingToRoom,
     connectToRoom,
     leaveRoom,
+    reset,
   } = useRoomStore();
 
   const [joinName, setJoinName] = useState("");
@@ -47,9 +48,10 @@ export default function RoomPage() {
   // Redirect home when kicked by host
   useEffect(() => {
     if (wasKicked) {
+      reset();
       router.replace("/");
     }
-  }, [wasKicked, router]);
+  }, [wasKicked, reset, router]);
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
