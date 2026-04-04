@@ -17,6 +17,7 @@ export default function RoomPage() {
     error,
     showJoinModal,
     isConnectingToRoom,
+    wasKicked,
     setShowJoinModal,
     setIsConnectingToRoom,
     connectToRoom,
@@ -42,6 +43,13 @@ export default function RoomPage() {
     setIsConnectingToRoom(true);
     connectToRoom(roomCode, playerId);
   }, [roomCode, connectToRoom, setShowJoinModal, setIsConnectingToRoom]);
+
+  // Redirect home when kicked by host
+  useEffect(() => {
+    if (wasKicked) {
+      router.replace("/");
+    }
+  }, [wasKicked, router]);
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();

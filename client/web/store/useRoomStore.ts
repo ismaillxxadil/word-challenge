@@ -9,8 +9,8 @@ interface RoomStore {
   error: string;
   showJoinModal: boolean;
   isConnectingToRoom: boolean;
+  wasKicked: boolean;
   settings: { timePerTurn: number; startingCards: number; allowVar: boolean };
-  roomLinkCopied: boolean;
 
   // Actions
   setRoom: (room: Room | null) => void;
@@ -22,7 +22,6 @@ interface RoomStore {
     startingCards: number;
     allowVar: boolean;
   }) => void;
-  setRoomLinkCopied: (copied: boolean) => void;
   initializeSocket: () => Socket;
   connectToRoom: (roomCode: string, playerId: string) => void;
   leaveRoom: (roomCode: string, playerId: string) => void;
@@ -35,7 +34,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   error: "",
   showJoinModal: false,
   isConnectingToRoom: false,
-  roomLinkCopied: false,
+  wasKicked: false,
   settings: {
     timePerTurn: 15,
     startingCards: 7,
@@ -48,7 +47,6 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setIsConnectingToRoom: (connecting) =>
     set({ isConnectingToRoom: connecting }),
   setSettings: (settings) => set({ settings }),
-  setRoomLinkCopied: (copied) => set({ roomLinkCopied: copied }),
 
   initializeSocket: () => {
     const socket = io(process.env.NEXT_PUBLIC_API_URL as string, {
@@ -91,7 +89,21 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     };
 
     const onPlayerRemoved = () => {
-      get().reset();
+      localStorage.removeItem("vc:playerId");
+      localStorage.removeItem("vc:roomCode");
+      const socket = get().socket;
+      if (socket) {
+        socket.disconnect();
+      }
+      set({
+        room: null,
+        socket: null,
+        error: "",
+        showJoinModal: false,
+        isConnectingToRoom: false,
+        wasKicked: true,
+        settings: { timePerTurn: 15, startingCards: 7, allowVar: true },
+      });
     };
 
     const onRoomError = (payload: { message: string }) => {
@@ -130,7 +142,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       error: "",
       showJoinModal: false,
       isConnectingToRoom: false,
-      roomLinkCopied: false,
+      wasKicked: false,
       settings: { timePerTurn: 15, startingCards: 7, allowVar: true },
     });
   },
