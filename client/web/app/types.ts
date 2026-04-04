@@ -4,6 +4,7 @@ export type Player = {
   isHost: boolean;
   joinedAt: number;
   socketId: string | null;
+<<<<<<< HEAD
   // In-game: cards assigned by the server (each card has 2 letters)
   cards?: { id: string; letterA: string; letterB: string; isSpecial?: boolean; isLock?: boolean }[];
   // Avatar URL chosen by the player (DiceBear or custom)
@@ -96,11 +97,21 @@ export type RoomState = {
   winner?: string | null;
   pendingWinner?: string | null;
   winTimeoutTimer?: NodeJS.Timeout | null;
+=======
+>>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
 };
 
 export type Room = {
   code: string;
   players: Player[];
   createdAt: number;
+<<<<<<< HEAD
   state: RoomState;
+=======
+  state: {
+    phase: string;
+    turnIndex: number;
+    startedAt: number | null;
+  };
+>>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
 };
