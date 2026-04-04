@@ -1,12 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRoomStore } from "@/store/useRoomStore";
+import { useRoomStore } from "@/store/roomStore";
 
 const EMOJIS = [
-  "😂", "😍", "😡", "😭",
-  "👍", "👎", "🔥", "🤔",
-  "😮", "🤣", "🥳", "❤️",
-  "💀", "😴", "🤯", "😤",
+  "😂",
+  "😍",
+  "😡",
+  "😭",
+  "👍",
+  "👎",
+  "🔥",
+  "🤔",
+  "😮",
+  "🤣",
+  "🥳",
+  "❤️",
+  "💀",
+  "😴",
+  "🤯",
+  "😤",
 ];
 
 interface EmojiReaction {
@@ -138,7 +150,7 @@ export const PlayerInfo = ({
 
           {/* Active Turn Indicator (Ring) */}
           {isActiveTurn && isOnline && (
-             <span className="absolute -inset-1 rounded-full border border-emerald-400/40 animate-pulse" />
+            <span className="absolute -inset-1 rounded-full border border-emerald-400/40 animate-pulse" />
           )}
 
           {/* Floating Emojis Container */}
@@ -152,7 +164,10 @@ export const PlayerInfo = ({
                   exit={{ opacity: 0, scale: 0.8, y: -60 }}
                   transition={{ duration: 1.2, ease: "easeOut" }}
                   className="absolute bottom-0 text-3xl"
-                  style={{ fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif" }}
+                  style={{
+                    fontFamily:
+                      "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif",
+                  }}
                 >
                   {reaction.emoji}
                 </motion.div>
@@ -184,7 +199,10 @@ export const PlayerInfo = ({
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               className="w-[28px] h-[28px] sm:w-[32px] sm:h-[32px] rounded-full bg-slate-800/80 hover:bg-slate-700 flex items-center justify-center text-lg shadow-sm transition-transform active:scale-95 border border-white/5"
               title="تفاعل"
-              style={{ fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif" }}
+              style={{
+                fontFamily:
+                  "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif",
+              }}
             >
               😊
             </button>
@@ -205,7 +223,8 @@ export const PlayerInfo = ({
                     exit={{ opacity: 0, y: 10, scale: 0.9 }}
                     transition={{ type: "spring", stiffness: 400, damping: 25 }}
                     style={{
-                      fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif",
+                      fontFamily:
+                        "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif",
                       // Smart anchor: open toward center of screen, not off-edge
                       ...(pickerSide === "left"
                         ? { left: 0, right: "auto" }
@@ -219,7 +238,10 @@ export const PlayerInfo = ({
                         type="button"
                         onClick={() => sendEmoji(emoji)}
                         className="text-xl sm:text-2xl p-1.5 hover:scale-125 transition-transform hover:bg-white/10 rounded-lg leading-none"
-                        style={{ fontFamily: "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif" }}
+                        style={{
+                          fontFamily:
+                            "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif",
+                        }}
                       >
                         {emoji}
                       </button>
@@ -232,34 +254,33 @@ export const PlayerInfo = ({
         )}
 
         {/* VAR Button / Indicator */}
-        {(!varDisabledReason || (!varDisabledReason.includes("VAR is disabled in room settings") && !varDisabledReason.includes("needs at least 3 players"))) && (
-          isMe ? (
-            !varDisabledReason?.includes("VAR_ALREADY_USED") && (
-              <button
-                type="button"
-                onClick={onVarClick}
-                title={varDisabledReason || "تحدي VAR"}
-                className={[
-                  "shrink-0 inline-flex items-center gap-1.5 rounded-lg font-bold transition-all shadow-md border-b-2 px-[clamp(8px,1.5vw,12px)] py-[clamp(2px,0.8vw,6px)] text-[clamp(9px,1vw,11px)]",
-                  !varDisabledReason
-                    ? "bg-slate-900 text-white hover:bg-slate-800 active:scale-95 border-slate-950"
-                    : "bg-slate-400/40 text-slate-500 border-slate-500/30 active:scale-95 opacity-70"
-                ].join(" ")}
-              >
-                <span>VAR</span>
-              </button>
-            )
-          ) : (
-            !varDisabledReason?.includes("VAR_ALREADY_USED") && (
-              <div
-                title="بطاقة VAR المتاحة"
-                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg font-bold shadow-md border-b-2 px-[clamp(8px,1.5vw,12px)] py-[clamp(2px,0.8vw,6px)] text-[clamp(9px,1vw,11px)] bg-slate-400/20 text-slate-400 border-slate-500/20 opacity-80 cursor-default select-none"
-              >
-                <span>VAR</span>
-              </div>
-            )
-          )
-        )}
+        {(!varDisabledReason ||
+          (!varDisabledReason.includes("VAR is disabled in room settings") &&
+            !varDisabledReason.includes("needs at least 3 players"))) &&
+          (isMe
+            ? !varDisabledReason?.includes("VAR_ALREADY_USED") && (
+                <button
+                  type="button"
+                  onClick={onVarClick}
+                  title={varDisabledReason || "تحدي VAR"}
+                  className={[
+                    "shrink-0 inline-flex items-center gap-1.5 rounded-lg font-bold transition-all shadow-md border-b-2 px-[clamp(8px,1.5vw,12px)] py-[clamp(2px,0.8vw,6px)] text-[clamp(9px,1vw,11px)]",
+                    !varDisabledReason
+                      ? "bg-slate-900 text-white hover:bg-slate-800 active:scale-95 border-slate-950"
+                      : "bg-slate-400/40 text-slate-500 border-slate-500/30 active:scale-95 opacity-70",
+                  ].join(" ")}
+                >
+                  <span>VAR</span>
+                </button>
+              )
+            : !varDisabledReason?.includes("VAR_ALREADY_USED") && (
+                <div
+                  title="بطاقة VAR المتاحة"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg font-bold shadow-md border-b-2 px-[clamp(8px,1.5vw,12px)] py-[clamp(2px,0.8vw,6px)] text-[clamp(9px,1vw,11px)] bg-slate-400/20 text-slate-400 border-slate-500/20 opacity-80 cursor-default select-none"
+                >
+                  <span>VAR</span>
+                </div>
+              ))}
       </div>
     </div>
   );

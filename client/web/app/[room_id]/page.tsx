@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useRoomStore } from "@/store/useRoomStore";
+import { useRoomStore } from "@/store/roomStore";
 import Model from "@/components/Model";
 import LobbyPage from "./LobbyPage";
 import GamePage from "./gamePage";

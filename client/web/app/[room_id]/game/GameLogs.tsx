@@ -2,25 +2,38 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRoomStore } from "@/store/useRoomStore";
-import { History, X, AlertCircle, CheckCircle2, MessageSquareWarning, Lock } from "lucide-react";
+import { useRoomStore } from "@/store/roomStore";
+import {
+  History,
+  X,
+  AlertCircle,
+  CheckCircle2,
+  MessageSquareWarning,
+  Lock,
+} from "lucide-react";
 import { submitComplaint } from "../../actions/complaint";
 import { toast } from "sonner";
 
 export const GameLogs = () => {
   const room = useRoomStore((state) => state.room);
   const [isOpen, setIsOpen] = useState(false);
-  const [complainingWords, setComplainingWords] = useState<Record<string, boolean>>({});
+  const [complainingWords, setComplainingWords] = useState<
+    Record<string, boolean>
+  >({});
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (isOpen && containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        isOpen &&
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -30,17 +43,19 @@ export const GameLogs = () => {
   if (!room) return null;
 
   const validLogs = room.state.playedWords.filter(
-    (w) => w.centerWordAfter || (w.attempt && w.attempt.newWord)
+    (w) => w.centerWordAfter || (w.attempt && w.attempt.newWord),
   );
 
   const handleComplain = async (word: string, type: string) => {
     if (complainingWords[word]) return;
-    
+
     setComplainingWords((prev) => ({ ...prev, [word]: true }));
-    toast.loading(`تقديم شكوى على كلمة "${word}"...`, { id: `complaint-${word}` });
-    
+    toast.loading(`تقديم شكوى على كلمة "${word}"...`, {
+      id: `complaint-${word}`,
+    });
+
     const res = await submitComplaint(word, type);
-    
+
     if (res.success) {
       toast.success(`تم تقديم الشكوى بنجاح`, { id: `complaint-${word}` });
     } else {
@@ -68,7 +83,9 @@ export const GameLogs = () => {
             <div className="flex items-center justify-between bg-black/20 px-1.5 py-1.5 sm:px-3 sm:py-2 border-b border-white/5">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <History className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-300 group-hover:text-indigo-200 transition-colors" />
-                <span className="text-[10px] sm:text-xs font-bold text-slate-300 group-hover:text-white transition-colors">أحدث الحركات</span>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-300 group-hover:text-white transition-colors">
+                  أحدث الحركات
+                </span>
               </div>
               {validLogs.length > 5 && (
                 <span className="text-[8px] sm:text-[10px] text-zinc-400 font-bold bg-white/5 px-1 sm:px-1.5 py-0.5 rounded-sm sm:rounded-md">
@@ -80,27 +97,55 @@ export const GameLogs = () => {
             {/* List of 5 recent items */}
             <div className="flex flex-col p-1 sm:p-2 gap-0.5 sm:gap-1 h-[100px] sm:h-[155px] overflow-hidden">
               {recentLogs.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-[9px] sm:text-[11px] text-zinc-500 pb-2">لا يوجد سجل</div>
+                <div className="flex items-center justify-center h-full text-[9px] sm:text-[11px] text-zinc-500 pb-2">
+                  لا يوجد سجل
+                </div>
               ) : (
                 recentLogs.map((log, idx) => {
                   const isAccepted = log.ok;
                   const isLocked = log.move?.isLockAction;
-                  const word = isAccepted ? log.centerWordAfter : log.attempt?.newWord;
+                  const word = isAccepted
+                    ? log.centerWordAfter
+                    : log.attempt?.newWord;
                   if (!word) return null;
-                  
-                  const statusConfig = isLocked 
-                    ? { color: "slate", icon: Lock, bg: "bg-slate-500/10", textIcon: "text-slate-400" }
-                    : isAccepted 
-                      ? { color: "emerald", icon: CheckCircle2, bg: "bg-emerald-500/10", textIcon: "text-emerald-400" }
-                      : { color: "rose", icon: AlertCircle, bg: "bg-rose-500/10", textIcon: "text-rose-400" };
-                      
+
+                  const statusConfig = isLocked
+                    ? {
+                        color: "slate",
+                        icon: Lock,
+                        bg: "bg-slate-500/10",
+                        textIcon: "text-slate-400",
+                      }
+                    : isAccepted
+                      ? {
+                          color: "emerald",
+                          icon: CheckCircle2,
+                          bg: "bg-emerald-500/10",
+                          textIcon: "text-emerald-400",
+                        }
+                      : {
+                          color: "rose",
+                          icon: AlertCircle,
+                          bg: "bg-rose-500/10",
+                          textIcon: "text-rose-400",
+                        };
+
                   const StatusIcon = statusConfig.icon;
-                  
+
                   return (
-                    <div key={idx} className={`flex items-center justify-between px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md sm:rounded-lg ${statusConfig.bg}`}>
+                    <div
+                      key={idx}
+                      className={`flex items-center justify-between px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md sm:rounded-lg ${statusConfig.bg}`}
+                    >
                       <div className="flex items-center gap-1 sm:gap-1.5 overflow-hidden">
-                        <StatusIcon className={`flex-shrink-0 h-2.5 w-2.5 sm:h-3 sm:w-3 ${statusConfig.textIcon}`} />
-                        <span className={`text-[9px] sm:text-[11px] font-bold tracking-wide truncate ${statusConfig.textIcon}`}>{word}</span>
+                        <StatusIcon
+                          className={`flex-shrink-0 h-2.5 w-2.5 sm:h-3 sm:w-3 ${statusConfig.textIcon}`}
+                        />
+                        <span
+                          className={`text-[9px] sm:text-[11px] font-bold tracking-wide truncate ${statusConfig.textIcon}`}
+                        >
+                          {word}
+                        </span>
                       </div>
                     </div>
                   );
@@ -148,16 +193,50 @@ export const GameLogs = () => {
                   validLogs.map((log, idx) => {
                     const isAccepted = log.ok;
                     const isLocked = log.move?.isLockAction;
-                    const word = isAccepted ? log.centerWordAfter : log.attempt?.newWord;
-                    const player = room.players.find(p => p.id === log.playerId);
-                    
+                    const word = isAccepted
+                      ? log.centerWordAfter
+                      : log.attempt?.newWord;
+                    const player = room.players.find(
+                      (p) => p.id === log.playerId,
+                    );
+
                     if (!word) return null;
 
-                    const statusConfig = isLocked 
-                      ? { color: "slate", icon: Lock, text: "قفل", border: "border-slate-500/30", bgGlow: "bg-slate-500/5", bgGlowHover: "group-hover:bg-slate-500/10", textIcon: "text-slate-400", badgeBg: "bg-slate-500/10", badgeBorder: "border-slate-500/20" }
-                      : isAccepted 
-                        ? { color: "emerald", icon: CheckCircle2, text: "مقبولة", border: "border-emerald-500/30", bgGlow: "bg-emerald-500/5", bgGlowHover: "group-hover:bg-emerald-500/10", textIcon: "text-emerald-400", badgeBg: "bg-emerald-500/10", badgeBorder: "border-emerald-500/20" }
-                        : { color: "rose", icon: AlertCircle, text: "مرفوضة", border: "border-rose-500/30", bgGlow: "bg-rose-500/5", bgGlowHover: "group-hover:bg-rose-500/10", textIcon: "text-rose-400", badgeBg: "bg-rose-500/10", badgeBorder: "border-rose-500/20" };
+                    const statusConfig = isLocked
+                      ? {
+                          color: "slate",
+                          icon: Lock,
+                          text: "قفل",
+                          border: "border-slate-500/30",
+                          bgGlow: "bg-slate-500/5",
+                          bgGlowHover: "group-hover:bg-slate-500/10",
+                          textIcon: "text-slate-400",
+                          badgeBg: "bg-slate-500/10",
+                          badgeBorder: "border-slate-500/20",
+                        }
+                      : isAccepted
+                        ? {
+                            color: "emerald",
+                            icon: CheckCircle2,
+                            text: "مقبولة",
+                            border: "border-emerald-500/30",
+                            bgGlow: "bg-emerald-500/5",
+                            bgGlowHover: "group-hover:bg-emerald-500/10",
+                            textIcon: "text-emerald-400",
+                            badgeBg: "bg-emerald-500/10",
+                            badgeBorder: "border-emerald-500/20",
+                          }
+                        : {
+                            color: "rose",
+                            icon: AlertCircle,
+                            text: "مرفوضة",
+                            border: "border-rose-500/30",
+                            bgGlow: "bg-rose-500/5",
+                            bgGlowHover: "group-hover:bg-rose-500/10",
+                            textIcon: "text-rose-400",
+                            badgeBg: "bg-rose-500/10",
+                            badgeBorder: "border-rose-500/20",
+                          };
 
                     const StatusIcon = statusConfig.icon;
 
@@ -170,12 +249,18 @@ export const GameLogs = () => {
                         className={`bg-zinc-800/50 rounded-xl p-3 border ${statusConfig.border} flex flex-col gap-2 relative overflow-hidden group`}
                       >
                         {/* Background glow effect based on status */}
-                        <div className={`absolute top-0 right-0 w-32 h-32 ${statusConfig.bgGlow} rounded-full blur-2xl -mr-16 -mt-16 ${statusConfig.bgGlowHover} transition-colors`} />
+                        <div
+                          className={`absolute top-0 right-0 w-32 h-32 ${statusConfig.bgGlow} rounded-full blur-2xl -mr-16 -mt-16 ${statusConfig.bgGlowHover} transition-colors`}
+                        />
 
                         <div className="flex justify-between items-center relative z-10">
                           <div className="flex items-center gap-2">
-                            <StatusIcon className={`h-4 w-4 ${statusConfig.textIcon}`} />
-                            <span className="text-white font-bold text-lg tracking-wide">{word}</span>
+                            <StatusIcon
+                              className={`h-4 w-4 ${statusConfig.textIcon}`}
+                            />
+                            <span className="text-white font-bold text-lg tracking-wide">
+                              {word}
+                            </span>
                           </div>
                           {player && (
                             <span className="text-xs text-zinc-400 truncate max-w-[100px]">
@@ -185,12 +270,23 @@ export const GameLogs = () => {
                         </div>
 
                         <div className="flex justify-between items-center mt-1 relative z-10">
-                          <span className={`text-xs px-2 py-1 rounded-md ${statusConfig.badgeBg} ${statusConfig.textIcon} font-medium border ${statusConfig.badgeBorder}`}>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-md ${statusConfig.badgeBg} ${statusConfig.textIcon} font-medium border ${statusConfig.badgeBorder}`}
+                          >
                             {statusConfig.text}
                           </span>
 
                           <button
-                            onClick={() => handleComplain(word, isLocked ? "locked" : isAccepted ? "accepted" : "rejected")}
+                            onClick={() =>
+                              handleComplain(
+                                word,
+                                isLocked
+                                  ? "locked"
+                                  : isAccepted
+                                    ? "accepted"
+                                    : "rejected",
+                              )
+                            }
                             disabled={complainingWords[word]}
                             className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10 px-2 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
