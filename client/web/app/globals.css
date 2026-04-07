@@ -3,6 +3,7 @@
 :root {
   --background: #0f172a;
   --foreground: #f8fafc;
+  --font-lalezar: "Playpen Sans Arabic", system-ui, sans-serif;
 }
 
 @theme inline {

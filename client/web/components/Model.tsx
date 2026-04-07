@@ -1,19 +1,13 @@
 import { LogIn, User, Loader } from "lucide-react";
-<<<<<<< HEAD
 import { AvatarSelector } from "@/components/AvatarSelector";
-=======
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
 
 export default function Model({
   roomCode,
   handleJoinRoom,
   joinName,
   setJoinName,
-<<<<<<< HEAD
   avatar,
   setAvatar,
-=======
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
   isJoining,
   joinError,
   handleLeave,
@@ -23,11 +17,8 @@ export default function Model({
   handleJoinRoom: (e: React.FormEvent<HTMLFormElement>) => void;
   joinName: string;
   setJoinName: (name: string) => void;
-<<<<<<< HEAD
   avatar: string;
   setAvatar: (avatar: string) => void;
-=======
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
   isJoining: boolean;
   joinError: string;
   handleLeave: () => void;
@@ -63,15 +54,9 @@ export default function Model({
         </div>
       ) : (
         <form onSubmit={handleJoinRoom} className="space-y-4">
-<<<<<<< HEAD
           {/* Avatar selection */}
-          <AvatarSelector
-            selectedAvatar={avatar}
-            onSelect={setAvatar}
-          />
+          <AvatarSelector selectedAvatar={avatar} onSelect={setAvatar} />
 
-=======
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
           <div className="space-y-2">
             <label
               htmlFor="joinName"

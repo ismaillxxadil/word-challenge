@@ -80,18 +80,27 @@ export const PlayerInfo = ({
     };
   }, [socket, playerId]);
 
-  // Smart positioning: keep emoji picker inside viewport
+  // Smart positioning: keep emoji picker inside viewport without reading refs during render
   const [pickerSide, setPickerSide] = useState<"right" | "left">("right");
 
   useEffect(() => {
-    if (!showEmojiPicker || !toggleRef.current) return;
-    const rect = toggleRef.current.getBoundingClientRect();
-    // If the button is in the left half of the screen, anchor picker to the left
-    if (rect.left < window.innerWidth / 2) {
-      setPickerSide("left");
-    } else {
-      setPickerSide("right");
-    }
+    if (!showEmojiPicker || typeof window === "undefined") return;
+
+    const updatePickerSide = () => {
+      const rect = toggleRef.current?.getBoundingClientRect();
+      if (!rect) {
+        setPickerSide("right");
+        return;
+      }
+      setPickerSide(rect.left < window.innerWidth / 2 ? "left" : "right");
+    };
+
+    updatePickerSide();
+    window.addEventListener("resize", updatePickerSide);
+
+    return () => {
+      window.removeEventListener("resize", updatePickerSide);
+    };
   }, [showEmojiPicker]);
 
   const sendEmoji = (emoji: string) => {

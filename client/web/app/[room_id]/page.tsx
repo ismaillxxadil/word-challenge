@@ -1,6 +1,5 @@
 "use client";
 
-<<<<<<< HEAD
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRoomStore } from "@/store/roomStore";
@@ -9,13 +8,6 @@ import LobbyPage from "./LobbyPage";
 import GamePage from "./gamePage";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSound } from "@/hooks/useSound";
-=======
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useRoomStore } from "@/store/useRoomStore";
-import Model from "@/components/Model";
-import LobbyPage from "./LobbyPage";
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
 
 export default function RoomPage() {
   const params = useParams<{ room_id: string }>();
@@ -28,27 +20,17 @@ export default function RoomPage() {
     error,
     showJoinModal,
     isConnectingToRoom,
-<<<<<<< HEAD
-=======
-    wasKicked,
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
     setShowJoinModal,
     setIsConnectingToRoom,
     connectToRoom,
     leaveRoom,
-<<<<<<< HEAD
   } = useRoomStore();
 
   const { play } = useSound();
-=======
-    reset,
-  } = useRoomStore();
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
 
   const [joinName, setJoinName] = useState("");
   const [joinError, setJoinError] = useState("");
   const [isJoining, setIsJoining] = useState(false);
-<<<<<<< HEAD
   const [avatar, setAvatar] = useState(
     "https://api.dicebear.com/7.x/avataaars/svg?seed=flex-089",
   );
@@ -66,8 +48,6 @@ export default function RoomPage() {
     if (savedName) setJoinName(savedName);
     if (savedAvatar) setAvatar(savedAvatar);
   }, []);
-=======
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
 
   // Initialize room connection on mount
   useEffect(() => {
@@ -84,17 +64,6 @@ export default function RoomPage() {
     setIsConnectingToRoom(true);
     connectToRoom(roomCode, playerId);
   }, [roomCode, connectToRoom, setShowJoinModal, setIsConnectingToRoom]);
-<<<<<<< HEAD
-=======
-
-  // Redirect home when kicked by host
-  useEffect(() => {
-    if (wasKicked) {
-      reset();
-      router.replace("/");
-    }
-  }, [wasKicked, reset, router]);
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,11 +144,9 @@ export default function RoomPage() {
       </main>
     );
   }
-<<<<<<< HEAD
-  const isGame = room && room.state.phase !== "lobby";
-=======
 
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
+  const isGame = room && room.state.phase !== "lobby";
+
   return (
     <main
       dir="rtl"
@@ -199,18 +166,14 @@ export default function RoomPage() {
           handleJoinRoom={handleJoinRoom}
           joinName={joinName}
           setJoinName={setJoinName}
-<<<<<<< HEAD
           avatar={avatar}
           setAvatar={setAvatar}
-=======
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
           isJoining={isJoining}
           joinError={joinError}
           handleLeave={handleLeave}
           isConnectingToRoom={isConnectingToRoom}
         />
       ) : (
-<<<<<<< HEAD
         <AnimatePresence mode="wait">
           {room.state.phase === "lobby" ? (
             <motion.div
@@ -256,9 +219,6 @@ export default function RoomPage() {
             </motion.div>
           )}
         </AnimatePresence>
-=======
-        <LobbyPage room={room} handleLeave={handleLeave} />
->>>>>>> 637a9872945947d6c45acd83776da2d8f65a959e
       )}
     </main>
   );

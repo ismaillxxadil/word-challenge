@@ -1,28 +1,30 @@
 import type { Metadata } from "next";
-import { Lalezar } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react"
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-
-const lalezar = Lalezar({
-  variable: "--font-lalezar",
-  subsets: ["arabic"],
-  weight: "400",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://wordchallenge.tech"),
   applicationName: "تحدي المفردات | Word Challenge",
   title: {
     default: "تحدي المفردات | Word Challenge",
-    template: "%s | تحدي المفردات"
+    template: "%s | تحدي المفردات",
   },
-  description: "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
-  keywords: ["لعبة كلمات", "تحدي المفردات", "لعبة جماعية", "ألعاب عربية", "Word Game", "Arabic Game"],
+  description:
+    "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
+  keywords: [
+    "لعبة كلمات",
+    "تحدي المفردات",
+    "لعبة جماعية",
+    "ألعاب عربية",
+    "Word Game",
+    "Arabic Game",
+  ],
   authors: [{ name: "Word Challenge", url: "https://wordchallenge.tech/" }],
   openGraph: {
     title: "تحدي المفردات | Word Challenge",
-    description: "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
+    description:
+      "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
     url: "https://wordchallenge.tech/",
     siteName: "تحدي المفردات",
     locale: "ar",
@@ -39,7 +41,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "تحدي المفردات | Word Challenge",
-    description: "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
+    description:
+      "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
   },
   robots: {
     index: true,
@@ -58,15 +61,17 @@ export default function RootLayout({
     <html lang="ar">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Playpen+Sans+Arabic:wght@100..800&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body
-        className={`${lalezar.variable} antialiased font-sans`}
-      >
+      <body className="antialiased font-sans">
         {children}
         <Toaster position="top-center" richColors theme="dark" />
         <Analytics />
