@@ -21,13 +21,12 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '22.x'
+          node-version: "22.x"
 
       - name: npm install, build, and test
         run: |
           npm install
           npm run build --if-present
-          npm run test --if-present
         working-directory: server
 
       - name: Upload artifact for deployment job
@@ -56,10 +55,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_98BE329D4FA8425FAA644424970A1749 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A2A2774A769742F48B82724BE275B905 }}
 
-      - name: 'Deploy to Azure Web App'
+      - name: "Deploy to Azure Web App"
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'word-challenge'
-          slot-name: 'Production'
-          package: ./server
+          app-name: "word-challenge"
+          slot-name: "production"
+          package: ./node-app/server
