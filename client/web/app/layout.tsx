@@ -1,30 +1,36 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Playpen_Sans_Arabic } from "next/font/google";
 import "./globals.css";
+
+const playpenSansArabic = Playpen_Sans_Arabic({
+  subsets: ["arabic"],
+  variable: "--font-lalezar",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://wordchallenge.tech"),
-  applicationName: "تحدي المفردات | Word Challenge",
+  applicationName: "تحدي المفردات",
   title: {
-    default: "تحدي المفردات | Word Challenge",
+    default: "تحدي المفردات",
     template: "%s | تحدي المفردات",
   },
   description:
-    "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
+    "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
   keywords: [
     "لعبة كلمات",
     "تحدي المفردات",
     "لعبة جماعية",
     "ألعاب عربية",
-    "Word Game",
-    "Arabic Game",
+    "تحدي الكلمات"
   ],
   authors: [{ name: "Word Challenge", url: "https://wordchallenge.tech/" }],
   openGraph: {
-    title: "تحدي المفردات | Word Challenge",
+    title: "تحدي المفردات ",
     description:
-      "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
+      "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
     url: "https://wordchallenge.tech/",
     siteName: "تحدي المفردات",
     locale: "ar",
@@ -34,15 +40,15 @@ export const metadata: Metadata = {
         url: "https://wordchallenge.tech/favicon.ico",
         width: 1200,
         height: 630,
-        alt: "تحدي المفردات | Word Challenge",
+        alt: "تحدي المفردات ",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "تحدي المفردات | Word Challenge",
+    title: "تحدي المفردات ",
     description:
-      "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء والعائلة. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
+      "لعبة كلمات ممتعة وتنافسية للعب مع الأصدقاء. انضم لتحدي أصدقائك في لعبة الكلمات العربية المثيرة للواقع.",
   },
   robots: {
     index: true,
@@ -58,19 +64,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Playpen+Sans+Arabic:wght@100..800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="ar" className={playpenSansArabic.variable}>
       <body className="antialiased font-sans">
         {children}
         <Toaster position="top-center" richColors theme="dark" />

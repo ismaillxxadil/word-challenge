@@ -23,17 +23,17 @@ app.use(compression());
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // limit each IP to 1000 requests per windowMs
-  message: "Too many requests from this IP, please try again later."
+  message: "Too many requests from this IP, please try again later.",
 });
 app.use(limiter);
 
 app.use(
   cors({
-    origin: true,
+    origin: [process.env.CLIENT_URL, "http://localhost:3000"],
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "10kb" })); // Limit JSON body to 10KB
 app.use("/room", roomRouter);
 app.use("/dictionary", dictionaryRouter);
 
@@ -44,7 +44,6 @@ app.get("/health", (req, res) => {
 
   for (const [code, room] of rooms.entries()) {
     activeRooms.push({
-      code,
       players: room.players.length,
       phase: room.state.phase,
       lastActivity: room.lastActivity,

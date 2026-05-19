@@ -8,6 +8,7 @@ import LobbyPage from "./LobbyPage";
 import GamePage from "./gamePage";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSound } from "@/hooks/useSound";
+import { sanitizeInput } from "@/app/utils/sanitize";
 
 export default function RoomPage() {
   const params = useParams<{ room_id: string }>();
@@ -45,7 +46,7 @@ export default function RoomPage() {
   useEffect(() => {
     const savedName = localStorage.getItem("vc:name");
     const savedAvatar = localStorage.getItem("vc:avatar");
-    if (savedName) setJoinName(savedName);
+    if (savedName) setJoinName(sanitizeInput(savedName));
     if (savedAvatar) setAvatar(savedAvatar);
   }, []);
 
@@ -68,7 +69,7 @@ export default function RoomPage() {
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const name = joinName.trim();
+    const name = sanitizeInput(joinName.trim());
     if (!name) {
       setJoinError("يرجى إدخال اسمك");
       return;

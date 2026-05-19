@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSound } from "@/hooks/useSound";
+import { sanitizeInput } from "@/app/utils/sanitize";
 import { AvatarSelector } from "@/components/AvatarSelector";
 import { motion } from "framer-motion";
 import { HelpButton } from "@/components/HelpModal";
@@ -76,7 +77,7 @@ export default function VocabularyChallengeHome() {
   useEffect(() => {
     const savedName = localStorage.getItem("vc:name");
     const savedAvatar = localStorage.getItem("vc:avatar");
-    if (savedName) setUsername(savedName);
+    if (savedName) setUsername(sanitizeInput(savedName));
     if (savedAvatar) setAvatar(savedAvatar);
   }, []);
 
@@ -108,7 +109,7 @@ export default function VocabularyChallengeHome() {
     e.preventDefault();
     play("click");
 
-    const name = username.trim();
+    const name = sanitizeInput(username.trim());
     if (!name) {
       setError("يرجى إدخال اسم اللاعب للمتابعة!");
       return;
@@ -353,7 +354,7 @@ export default function VocabularyChallengeHome() {
                     id="username"
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(sanitizeInput(e.target.value))}
                     placeholder="أدخل اسمك المميز..."
                     maxLength={15}
                     className="w-full bg-[#0b1121] border-2 border-slate-700 text-white pr-12 lg:pr-14 pl-4 py-3.5 lg:py-4 rounded-2xl focus:outline-none focus:border-purple-500 hover:border-slate-600 transition-all placeholder:text-slate-500 shadow-inner font-medium text-lg lg:text-xl"

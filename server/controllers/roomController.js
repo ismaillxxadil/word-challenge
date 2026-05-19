@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { makePlayerId } from "../utils/ids.js";
 import { createEmptyRoom, getRoom } from "../store/room.js";
+import sanitizeName from "../utils/sanitize.js";
 
 const createRoomSchema = z.object({
   name: z.string().trim().min(1).max(20).optional(),
@@ -20,7 +21,10 @@ function makeDefaultAvatar(name) {
 
 export async function createRoom(req, res) {
   try {
-    const body = createRoomSchema.parse(req.body);
+    const cleaned = { ...req.body };
+    if (typeof cleaned.name === "string")
+      cleaned.name = sanitizeName(cleaned.name);
+    const body = createRoomSchema.parse(cleaned);
 
     const hostPlayer = {
       id: makePlayerId(),
@@ -58,7 +62,10 @@ export function joinRoom(req, res) {
       return res.status(403).json({ ok: false, error: "Room is full" });
     }
 
-    const body = joinSchema.parse(req.body);
+    const cleaned = { ...req.body };
+    if (typeof cleaned.name === "string")
+      cleaned.name = sanitizeName(cleaned.name);
+    const body = joinSchema.parse(cleaned);
 
     const player = {
       id: makePlayerId(),

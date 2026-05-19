@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
+import { SocketRateLimiterManager } from "./utils/rateLimiter.js";
 
 // Load word list for game
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -109,7 +110,7 @@ function nextPlayerIndex(room, currentIndex) {
 
 function decrementLocks(room) {
   if (!room.state.lockedIndices) return;
-  Object.keys(room.state.lockedIndices).forEach(idx => {
+  Object.keys(room.state.lockedIndices).forEach((idx) => {
     if (room.state.lockedIndices[idx].turnsRemaining) {
       room.state.lockedIndices[idx].turnsRemaining -= 1;
       if (room.state.lockedIndices[idx].turnsRemaining <= 0) {
@@ -237,18 +238,24 @@ function resolveVar(io, room, roomCode, result, reason) {
 
   // Check if there was a pending winner
   if (room.state.pendingWinner) {
-    const winnerPlayer = room.players.find(p => p.id === room.state.pendingWinner);
-    
+    const winnerPlayer = room.players.find(
+      (p) => p.id === room.state.pendingWinner,
+    );
+
     if (result === "REJECT") {
       // The pending winner's final word was rejected, they got cards back, so no win
       room.state.pendingWinner = null;
       room.state.phase = "in-game";
-    } else if (result === "ACCEPT" && winnerPlayer && winnerPlayer.cards.length === 0) {
+    } else if (
+      result === "ACCEPT" &&
+      winnerPlayer &&
+      winnerPlayer.cards.length === 0
+    ) {
       // The final word was accepted, so the pending winner actually wins!
       room.state.phase = "game-over";
       room.state.winner = room.state.pendingWinner;
       room.state.pendingWinner = null;
-      
+
       // Emit the game ending event since it's final now
       io.to(roomCode).emit("game:ended", { winnerId: room.state.winner });
     } else {
@@ -260,8 +267,8 @@ function resolveVar(io, room, roomCode, result, reason) {
     room.state.phase = "in-game";
   }
 
-  // Calculate time spent in VAR and extend the current game turn 
-  // so the player does not instantly hit the timeout check 
+  // Calculate time spent in VAR and extend the current game turn
+  // so the player does not instantly hit the timeout check
   const varDurationMs = Date.now() - s.startedAt;
   if (room.state.turnStartedAt) {
     room.state.turnStartedAt += varDurationMs;
@@ -328,10 +335,14 @@ function startVarVotingPhase(io, room, roomCode) {
 export function setupSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: true,
+      origin: [process.env.CLIENT_URL, "http://localhost:3000"],
       credentials: true,
     },
+    maxHttpBufferSize: 3e5, //
   });
+
+  // Initialize rate limiter manager
+  const rateLimiter = new SocketRateLimiterManager();
 
   io.on("connection", (socket) => {
     socket.on("room:join", ({ roomCode, playerId }) => {
@@ -344,13 +355,13 @@ export function setupSocket(httpServer) {
         return socket.emit("room:error", { message: "Player not found" });
 
       player.socketId = socket.id;
-      
+
       // If the player had a pending disconnect timer, clear it because they reconnected
       if (player.disconnectTimeout) {
         clearTimeout(player.disconnectTimeout);
         player.disconnectTimeout = null;
       }
-      
+
       socket.join(room.code);
 
       // send snapshot to the joining socket
@@ -362,6 +373,10 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("room:change-settings", ({ roomCode, settings }) => {
+      // Rate limit: 5 setting changes per second
+      if (!rateLimiter.isAllowed(socket.id, "room:change-settings")) {
+        return;
+      }
       const room = getRoom(roomCode);
       if (!room) return;
 
@@ -375,6 +390,10 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("room:send-emoji", ({ roomCode, playerId, emoji }) => {
+      // Rate limit: 5 emojis per second
+      if (!rateLimiter.isAllowed(socket.id, "room:send-emoji")) {
+        return;
+      }
       const room = getRoom(roomCode);
       if (!room) return;
       // Broadcast the emoji back to everyone in this room
@@ -383,6 +402,10 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("room:remove-player", ({ roomCode, playerId }) => {
+      // Rate limit: 5 removals per second
+      if (!rateLimiter.isAllowed(socket.id, "room:remove-player")) {
+        return;
+      }
       const room = getRoom(roomCode);
       if (!room) return;
 
@@ -421,6 +444,10 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("room:promote-to-host", ({ roomCode, playerId }) => {
+      // Rate limit: 5 promotions per second
+      if (!rateLimiter.isAllowed(socket.id, "room:promote-to-host")) {
+        return;
+      }
       const room = getRoom(roomCode);
       if (!room) return;
       //only the host can do it
@@ -569,6 +596,10 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("room:play-card", (payload, ack) => {
+      // Rate limit: 1 action per 100ms
+      if (!rateLimiter.isAllowed(socket.id, "room:play-card")) {
+        return ack?.({ ok: false, error: "Rate limited. Please slow down." });
+      }
       try {
         const {
           roomCode,
@@ -633,66 +664,76 @@ export function setupSocket(httpServer) {
         if (room.state.lockedIndices[targetIndex]) {
           const lock = room.state.lockedIndices[targetIndex];
           if (lock.lockedBy !== playerId) {
-            return ack?.({ ok: false, error: "This letter is locked for this round!" });
+            return ack?.({
+              ok: false,
+              error: "This letter is locked for this round!",
+            });
           }
         }
 
         const card = player.cards[cardIndex];
-        
+
         // Handle playing a lock card
         if (card.isLock) {
-           player.cards.splice(cardIndex, 1);
-           room.state.lockedIndices[targetIndex] = {
-             lockedBy: playerId,
-             turnsRemaining: room.players.length
-           };
+          player.cards.splice(cardIndex, 1);
+          room.state.lockedIndices[targetIndex] = {
+            lockedBy: playerId,
+            turnsRemaining: room.players.length,
+          };
 
-           room.state.playedWords ||= [];
-           room.state.playedWords.push({
-             ok: true,
-             playerId,
-             at: Date.now(),
-             centerWordBefore: centerWord,
-             centerWordAfter: centerWord, // Word doesn't change
-             move: { card, pick: "A", targetIndex, isLockAction: true },
-           });
+          room.state.playedWords ||= [];
+          room.state.playedWords.push({
+            ok: true,
+            playerId,
+            at: Date.now(),
+            centerWordBefore: centerWord,
+            centerWordAfter: centerWord, // Word doesn't change
+            move: { card, pick: "A", targetIndex, isLockAction: true },
+          });
 
-           // End game check? (playing a lock card can win the game)
-           if (player.cards.length === 0) {
-              room.state.phase = "game-over";
-              room.state.winner = playerId;
-              io.to(roomCode).emit("room:update", { room });
-              io.to(roomCode).emit("game:ended", { winnerId: playerId });
-              return ack?.({ ok: true, valid: true, newWord: centerWord });
-           }
+          // End game check? (playing a lock card can win the game)
+          if (player.cards.length === 0) {
+            room.state.phase = "game-over";
+            room.state.winner = playerId;
+            io.to(roomCode).emit("room:update", { room });
+            io.to(roomCode).emit("game:ended", { winnerId: playerId });
+            return ack?.({ ok: true, valid: true, newWord: centerWord });
+          }
 
-           const now = Date.now();
-           
-           // Decrement lock turns before passing turn
-           decrementLocks(room);
+          const now = Date.now();
 
-           room.state.currentPlayerIndex = nextPlayerIndex(room, room.state.currentPlayerIndex);
-           room.state.turnStartedAt = now;
+          // Decrement lock turns before passing turn
+          decrementLocks(room);
 
-           io.to(roomCode).emit("room:update", { room });
-           io.to(roomCode).emit("game:move-applied", {
-             playerId,
-             newWord: centerWord,
-             targetIndex,
-             pick: "A",
-             turnStartedAt: now,
-             currentPlayerIndex: room.state.currentPlayerIndex,
-             isLockAction: true,
-           });
+          room.state.currentPlayerIndex = nextPlayerIndex(
+            room,
+            room.state.currentPlayerIndex,
+          );
+          room.state.turnStartedAt = now;
 
-           return ack?.({ ok: true, valid: true, newWord: centerWord });
+          io.to(roomCode).emit("room:update", { room });
+          io.to(roomCode).emit("game:move-applied", {
+            playerId,
+            newWord: centerWord,
+            targetIndex,
+            pick: "A",
+            turnStartedAt: now,
+            currentPlayerIndex: room.state.currentPlayerIndex,
+            isLockAction: true,
+          });
+
+          return ack?.({ ok: true, valid: true, newWord: centerWord });
         }
-
 
         let chosenLetter = pick === "B" ? card.letterB : card.letterA;
 
         // Apply special card letter if provided and valid
-        if (card.isSpecial && specialLetter && typeof specialLetter === "string" && AR_LETTERS.includes(specialLetter)) {
+        if (
+          card.isSpecial &&
+          specialLetter &&
+          typeof specialLetter === "string" &&
+          AR_LETTERS.includes(specialLetter)
+        ) {
           chosenLetter = specialLetter;
         }
 
@@ -716,7 +757,7 @@ export function setupSocket(httpServer) {
           const maxAllowed = room.state.settings.maxRepeatCount ?? 1;
           // Count how many times this exact word appeared as centerWordAfter
           const timesPlayed = room.state.playedWords.filter(
-            (e) => e.centerWordAfter === newWord
+            (e) => e.centerWordAfter === newWord,
           ).length;
           if (timesPlayed >= maxAllowed) {
             return ack?.({
@@ -781,9 +822,9 @@ export function setupSocket(httpServer) {
         if (player.cards.length === 0) {
           room.state.phase = "pending-win";
           room.state.pendingWinner = playerId;
-          
+
           io.to(roomCode).emit("room:update", { room });
-          
+
           // Set a timeout to finalize the win if no VAR is called
           room.state.winTimeoutTimer = setTimeout(() => {
             if (room.state.phase === "pending-win") {
@@ -827,6 +868,10 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("room:draw-pass", (payload, ack) => {
+      // Rate limit: 1 action per 100ms
+      if (!rateLimiter.isAllowed(socket.id, "room:draw-pass")) {
+        return ack?.({ ok: false, error: "Rate limited. Please slow down." });
+      }
       try {
         const { roomCode, playerId } = payload || {};
         const room = getRoom(roomCode);
@@ -863,7 +908,7 @@ export function setupSocket(httpServer) {
           at: Date.now(),
           centerWordBefore: room.state.centerWord,
           isPass: true,
-          action: "pass"
+          action: "pass",
         });
 
         // 3. Decrement lock turns before passing turn
@@ -878,16 +923,19 @@ export function setupSocket(httpServer) {
         room.state.turnStartedAt = now;
 
         io.to(roomCode).emit("room:update", { room });
-        
+
         // Let the client know it worked (though state update drives the UI)
         return ack?.({ ok: true });
-        
       } catch (e) {
         return ack?.({ ok: false, error: "Unexpected server error" });
       }
     });
 
     socket.on("var:start", ({ roomCode }) => {
+      // Rate limit: 1 VAR start per 500ms
+      if (!rateLimiter.isAllowed(socket.id, "var:start")) {
+        return;
+      }
       console.log(
         `[DEBUG] var:start event received for room: ${roomCode} from socket: ${socket.id}`,
       );
@@ -912,7 +960,10 @@ export function setupSocket(httpServer) {
           `[DEBUG] Room Phase: '${room.state.phase}' (Expected: 'in-game' or 'pending-win')`,
         );
 
-        if (room.state.phase !== "in-game" && room.state.phase !== "pending-win") {
+        if (
+          room.state.phase !== "in-game" &&
+          room.state.phase !== "pending-win"
+        ) {
           socket.emit("var:error", {
             code: `NOT_IN_GAME_OR_PENDING (Phase: ${room.state.phase})`,
           });
@@ -969,14 +1020,15 @@ export function setupSocket(httpServer) {
         const needed = neededToWin(eligibleVoters.length);
 
         // Initial explanation phase
-        const explanationDurationSeconds = getVarExplanationDurationSeconds(room);
+        const explanationDurationSeconds =
+          getVarExplanationDurationSeconds(room);
         const explanationDurationMs = explanationDurationSeconds * 1000;
         const now = Date.now();
         const explanationExpiresAt = now + explanationDurationMs;
 
         // 8) create VAR session
         const varId = uid();
-        
+
         // If a win is pending, pause/clear the timeout so VAR can proceed safely
         if (room.state.winTimeoutTimer) {
           clearTimeout(room.state.winTimeoutTimer);
@@ -1012,7 +1064,7 @@ export function setupSocket(httpServer) {
           if (s.id !== varId) return;
           if (s.resolved) return;
           if (s.status !== "awaiting_explanation") return;
-          
+
           // Time's up, automatically proceed to voting
           startVarVotingPhase(io, r, roomCode);
         }, explanationDurationMs);
@@ -1021,7 +1073,7 @@ export function setupSocket(httpServer) {
         Object.defineProperty(room.state.varSession, "timer", {
           value: timer,
           writable: true,
-          enumerable: false, 
+          enumerable: false,
           configurable: true,
         });
 
@@ -1048,13 +1100,19 @@ export function setupSocket(httpServer) {
 
     // Handle incoming explanation submission
     socket.on("var:submit-explanation", ({ roomCode, explanation }) => {
+      // Rate limit: 1 submission per 100ms
+      if (!rateLimiter.isAllowed(socket.id, "var:submit-explanation")) {
+        return socket.emit("var:error", { code: "RATE_LIMITED" });
+      }
       const room = getRoom(roomCode);
       if (!room?.state?.varSession) return;
       const s = room.state.varSession;
-      
-      if (s.resolved) return socket.emit("var:error", { code: "VAR_ALREADY_RESOLVED" });
-      if (s.status !== "awaiting_explanation") return socket.emit("var:error", { code: "NOT_IN_EXPLANATION_PHASE" });
-      
+
+      if (s.resolved)
+        return socket.emit("var:error", { code: "VAR_ALREADY_RESOLVED" });
+      if (s.status !== "awaiting_explanation")
+        return socket.emit("var:error", { code: "NOT_IN_EXPLANATION_PHASE" });
+
       const voter = room.players.find((p) => p.socketId === socket.id);
       if (!voter || voter.id !== s.accusedId) {
         return socket.emit("var:error", { code: "ONLY_ACCUSED_CAN_EXPLAIN" });
@@ -1068,6 +1126,10 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("var:vote", ({ roomCode, choice }) => {
+      // Rate limit: 1 vote per 100ms
+      if (!rateLimiter.isAllowed(socket.id, "var:vote")) {
+        return;
+      }
       const room = getRoom(roomCode);
       if (!room?.state?.varSession) return;
 
@@ -1171,55 +1233,64 @@ export function setupSocket(httpServer) {
     });
 
     socket.on("disconnect", () => {
+      // Clean up rate limiter for this socket
+      rateLimiter.removeSocket(socket.id);
+
       for (const room of rooms.values()) {
         const p = room.players.find((x) => x.socketId === socket.id);
         if (p) {
           p.socketId = null;
-          
+
           // Clear any existing timer just in case
           if (p.disconnectTimeout) {
             clearTimeout(p.disconnectTimeout);
           }
-          
-          // Set a 3-hour timer to remove the player
-          const timer = setTimeout(() => {
-            // Re-fetch the room explicitly
-            const r = rooms.get(room.code);
-            if (!r) return;
-            
-            const playerIndex = r.players.findIndex(player => player.id === p.id);
-            if (playerIndex === -1) return;
 
-            // They are still disconnected after 3 hours across any reconnections
-            if (!r.players[playerIndex].socketId) {
-               // Handle turn logic
-               if (r.state.phase === "in-game") {
-                 if (playerIndex < r.state.currentPlayerIndex) {
-                   r.state.currentPlayerIndex--;
-                 } else if (playerIndex === r.state.currentPlayerIndex) {
-                   const newLength = r.players.length - 1;
-                   r.state.currentPlayerIndex = newLength > 0 ? playerIndex % newLength : 0;
-                   r.state.turnStartedAt = Date.now();
-                 }
-               }
-               
-               const leavingPlayer = r.players[playerIndex];
-               const wasHost = leavingPlayer.isHost;
-               
-               r.players.splice(playerIndex, 1);
-               
-               if (wasHost && r.players.length > 0) {
-                 r.players[0].isHost = true;
-               }
-               
-               if (r.players.length === 0) {
-                 rooms.delete(room.code);
-               } else {
-                 touchRoom(r);
-                 io.to(room.code).emit("room:update", { room: r });
-               }
-            }
-          }, 3 * 60 * 60 * 1000); // 3 hours
+          // Set a 3-hour timer to remove the player
+          const timer = setTimeout(
+            () => {
+              // Re-fetch the room explicitly
+              const r = rooms.get(room.code);
+              if (!r) return;
+
+              const playerIndex = r.players.findIndex(
+                (player) => player.id === p.id,
+              );
+              if (playerIndex === -1) return;
+
+              // They are still disconnected after 3 hours across any reconnections
+              if (!r.players[playerIndex].socketId) {
+                // Handle turn logic
+                if (r.state.phase === "in-game") {
+                  if (playerIndex < r.state.currentPlayerIndex) {
+                    r.state.currentPlayerIndex--;
+                  } else if (playerIndex === r.state.currentPlayerIndex) {
+                    const newLength = r.players.length - 1;
+                    r.state.currentPlayerIndex =
+                      newLength > 0 ? playerIndex % newLength : 0;
+                    r.state.turnStartedAt = Date.now();
+                  }
+                }
+
+                const leavingPlayer = r.players[playerIndex];
+                const wasHost = leavingPlayer.isHost;
+
+                r.players.splice(playerIndex, 1);
+
+                if (wasHost && r.players.length > 0) {
+                  r.players[0].isHost = true;
+                }
+
+                if (r.players.length === 0) {
+                  rooms.delete(room.code);
+                } else {
+                  touchRoom(r);
+                  io.to(room.code).emit("room:update", { room: r });
+                }
+              }
+            },
+            3 * 60 * 60 * 1000,
+          ); // 3 hours
 
           Object.defineProperty(p, "disconnectTimeout", {
             value: timer,
@@ -1227,7 +1298,7 @@ export function setupSocket(httpServer) {
             enumerable: false,
             configurable: true,
           });
-          
+
           touchRoom(room);
           io.to(room.code).emit("room:update", { room });
           break;
