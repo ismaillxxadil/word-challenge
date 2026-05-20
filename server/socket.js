@@ -335,7 +335,7 @@ function startVarVotingPhase(io, room, roomCode) {
 export function setupSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: [process.env.CLIENT_URL, "http://localhost:3000"],
+      origin: "*", // Allow all origins for now; adjust in production
       credentials: true,
     },
     maxHttpBufferSize: 3e5, //
