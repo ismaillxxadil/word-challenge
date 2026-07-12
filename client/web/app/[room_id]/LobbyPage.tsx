@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Users,
-  Copy,
   Check,
   Play,
   Settings,
@@ -22,7 +21,6 @@ import {
 import { useRoomStore } from "@/store/roomStore";
 import { Room } from "@/app/types";
 import { HelpButton } from "@/components/HelpModal";
-import { useSound } from "@/hooks/useSound";
 
 interface LobbyPageProps {
   room: Room;
@@ -381,15 +379,34 @@ function SettingsModal({
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
   const { settings, setSettings, socket } = useRoomStore();
-  const { play } = useSound();
   const [roomLinkCopied, setRoomLinkCopied] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showSettingsReminder, setShowSettingsReminder] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const reminderCode = window.location.pathname.replace(/^\/+/, "");
+    const reminderKey = `vc:settingsReminder:${reminderCode.toUpperCase()}`;
+    return localStorage.getItem(reminderKey) !== "1";
+  });
 
   const currentPlayerId = localStorage.getItem("vc:playerId");
   const currentPlayer = room.players.find((p) => p.id === currentPlayerId);
   const isHost = currentPlayer?.isHost ?? false;
   const players = room.players;
   const canStart = isHost && players.length >= 2;
+
+  useEffect(() => {
+    if (!isHost || !showSettingsReminder) return;
+    const reminderKey = `vc:settingsReminder:${room.code}`;
+    localStorage.setItem(reminderKey, "1");
+  }, [isHost, room.code, showSettingsReminder]);
+
+  useEffect(() => {
+    if (!isHost || !showSettingsReminder) return;
+    const timer = window.setTimeout(() => {
+      setShowSettingsReminder(false);
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [isHost, showSettingsReminder]);
 
   const getAvatarUrl = (name: string, avatar?: string | null) => {
     if (avatar) return avatar;
@@ -477,17 +494,38 @@ export default function LobbyPage({ room, handleLeave }: LobbyPageProps) {
               </button>
 
               {/* Settings button */}
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:border-slate-600 hover:text-white transition-all duration-200"
-                title="إعدادات المعركة"
-              >
-                <Settings
-                  size={16}
-                  className={isHost ? "text-purple-400" : "text-slate-500"}
-                />
-                <span className="hidden xs:inline">الإعدادات</span>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setSettingsOpen(true)}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:border-slate-600 hover:text-white transition-all duration-200"
+                  title="إعدادات المعركة"
+                >
+                  <Settings
+                    size={16}
+                    className={isHost ? "text-purple-400" : "text-slate-500"}
+                  />
+                  <span className="hidden xs:inline">الإعدادات</span>
+                </button>
+
+                {isHost && showSettingsReminder && (
+                  <div className="absolute right-0 top-full mt-2 z-20 w-44 xs:w-48 sm:w-56 rounded-xl border border-amber-400/50 bg-slate-900/95 p-3 shadow-xl">
+                    <div className="absolute -top-1.5 right-6 h-3 w-3 rotate-45 border-l border-t border-amber-400/50 bg-slate-900/95" />
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-amber-200 text-xs font-bold leading-relaxed">
+                        لا تنسى ظبط الاعدادات
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowSettingsReminder(false)}
+                        className="text-slate-400 hover:text-white transition-colors flex-shrink-0"
+                        aria-label="إغلاق"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Help button */}
               <HelpButton />

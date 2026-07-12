@@ -29,6 +29,19 @@ interface FloatingLetter {
   delay: number;
 }
 
+// SVG TikTok Icon Component
+const TikTokIcon = ({ size = 24 }: { size?: number }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a5.79 5.79 0 0 0-1.23-.12 5.78 5.78 0 0 0-5.79 5.78 5.78 5.78 0 0 0 5.78 5.78 5.77 5.77 0 0 0 5.77-5.78V9.47a7.6 7.6 0 0 0 4.23 1.27V7.93a4.6 4.6 0 0 1-0.82-.03z" />
+  </svg>
+);
+
 const tabVariants = {
   hidden: { opacity: 0, x: -20 },
   visible: { opacity: 1, x: 0, transition: { duration: 0.3 } },
@@ -68,7 +81,9 @@ export default function VocabularyChallengeHome() {
   const { play } = useSound();
 
   const [username, setUsername] = useState("");
+  const [roomCodeInput, setRoomCodeInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isJoiningByCode, setIsJoiningByCode] = useState(false);
   const [error, setError] = useState("");
   const [avatar, setAvatar] = useState(
     "https://api.dicebear.com/7.x/avataaars/svg?seed=flex-089",
@@ -150,6 +165,35 @@ export default function VocabularyChallengeHome() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleJoinWithRoomCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    play("click");
+
+    const name = sanitizeInput(username.trim());
+    const roomCode = sanitizeInput(roomCodeInput.trim()).toUpperCase();
+
+    if (!name) {
+      setError("يرجى إدخال اسم اللاعب أولًا");
+      return;
+    }
+
+    if (!roomCode) {
+      setError("يرجى إدخال كود الغرفة");
+      return;
+    }
+
+    setIsJoiningByCode(true);
+    setError("");
+
+    // Reset any stale room session so the room page opens join flow with current player data.
+    localStorage.removeItem("vc:playerId");
+    localStorage.removeItem("vc:roomCode");
+    localStorage.setItem("vc:name", name);
+    localStorage.setItem("vc:avatar", avatar);
+
+    router.push(`/${roomCode}`);
   };
 
   return (
@@ -285,6 +329,15 @@ export default function VocabularyChallengeHome() {
                 >
                   <Linkedin size={18} />
                 </a>
+                <a
+                  href="https://www.tiktok.com/@wordchallenge_game"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="TikTok"
+                  className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/40 transition"
+                >
+                  <TikTokIcon size={18} />
+                </a>
               </motion.div>
             </header>
 
@@ -406,6 +459,59 @@ export default function VocabularyChallengeHome() {
                   </div>
                 )}
               </motion.button>
+
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-700/50" />
+                <span className="text-xs text-slate-400 font-bold">أو</span>
+                <div className="h-px flex-1 bg-slate-700/50" />
+              </div>
+
+              <div className="space-y-3">
+                <label
+                  htmlFor="roomCode"
+                  className="text-sm font-bold text-slate-200 mr-2 block"
+                >
+                  كود الغرفة
+                </label>
+                <input
+                  id="roomCode"
+                  type="text"
+                  value={roomCodeInput}
+                  onChange={(e) =>
+                    setRoomCodeInput(
+                      sanitizeInput(e.target.value)
+                        .toUpperCase()
+                        .replace(/\s+/g, ""),
+                    )
+                  }
+                  placeholder="مثال: AB12CD"
+                  maxLength={12}
+                  className="w-full bg-[#0b1121] border-2 border-slate-700 text-white px-4 py-3.5 lg:py-4 rounded-2xl focus:outline-none focus:border-indigo-500 hover:border-slate-600 transition-all placeholder:text-slate-500 shadow-inner font-medium text-lg lg:text-xl tracking-wider"
+                  autoComplete="off"
+                />
+
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={handleJoinWithRoomCode}
+                  disabled={isJoiningByCode}
+                  className="w-full relative overflow-hidden group bg-slate-800 hover:bg-slate-700 text-white font-bold text-base lg:text-lg py-3.5 lg:py-4 rounded-2xl transition-all disabled:opacity-70 disabled:cursor-not-allowed border border-slate-600"
+                >
+                  <span
+                    className={`flex items-center justify-center gap-2 transition-all ${isJoiningByCode ? "opacity-0" : "opacity-100"}`}
+                  >
+                    دخول غرفة بالكود
+                    <LogIn className="w-[18px] h-[18px] rotate-180" />
+                  </span>
+
+                  {isJoiningByCode && (
+                    <div className="absolute inset-0 flex items-center justify-center z-20">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                </motion.button>
+              </div>
             </form>
           </div>
 
@@ -428,6 +534,15 @@ export default function VocabularyChallengeHome() {
                 className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/40 transition"
               >
                 <Linkedin size={16} />
+              </a>
+              <a
+                href="https://www.tiktok.com/@wordchallenge_game"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="TikTok"
+                className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/40 transition"
+              >
+                <TikTokIcon size={16} />
               </a>
             </div>
 
